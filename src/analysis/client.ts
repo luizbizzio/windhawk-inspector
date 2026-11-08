@@ -1,5 +1,5 @@
 import type { ScanReport } from './types';
-import { MAX_AST_SOURCE_BYTES, MAX_SOURCE_BYTES } from './url';
+import { MAX_SOURCE_BYTES } from './url';
 
 export interface SourceInput { filename: string; source: string; }
 export async function readLocalFile(file: File): Promise<SourceInput> {
@@ -16,7 +16,8 @@ export function runAnalysis(input: SourceInput): Promise<ScanReport> {
   return new Promise<ScanReport>((resolve, reject) => {
     const worker = new Worker(new URL('../workers/analyzer.worker.ts', import.meta.url), { type: 'module' });
     const id = 1;
-    const timeoutMs = size > MAX_AST_SOURCE_BYTES ? 120_000 : 60_000;
+    // Larger ASTs may now visit up to 2 million nodes before falling back.
+    const timeoutMs = size > 2_000_000 ? 120_000 : 60_000;
     const timeout = window.setTimeout(() => { worker.terminate(); reject(new Error(`Analysis timed out after ${timeoutMs / 1000} seconds.`)); }, timeoutMs);
     const finish = () => { window.clearTimeout(timeout); worker.terminate(); };
     worker.onmessage = (event: MessageEvent<{ id: number; report?: ScanReport; error?: string }>) => {

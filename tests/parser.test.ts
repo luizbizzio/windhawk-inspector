@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { Language, Parser } from 'web-tree-sitter';
-import { inspectSyntaxTree } from '../src/analysis/parser';
+import { inspectSyntaxTree, MAX_AST_NODES, MAX_AST_CALLS } from '../src/analysis/parser';
+import type { Tree } from 'web-tree-sitter';
 
 describe('C++ Tree-sitter WASM integration', () => {
   it('loads grammar and finds a C++ call expression', async () => {
@@ -44,4 +45,22 @@ describe('C++ Tree-sitter WASM integration', () => {
     tree?.delete();
     parser.delete();
   });
+  it('inspects more than 500,000 syntax nodes before reaching the new limit', () => {
+    expect(MAX_AST_NODES).toBe(2_000_000);
+    expect(MAX_AST_CALLS).toBe(60_000);
+    let index = 0;
+    const count = 500_123;
+    const cursor = {
+      currentNode: { type: 'identifier', isMissing: false },
+      gotoFirstChild: () => false,
+      gotoNextSibling: () => ++index < count,
+      gotoParent: () => false,
+    };
+    const tree = { walk: () => cursor } as unknown as Tree;
+    const result = inspectSyntaxTree('int x;', tree);
+    expect(result.diagnostics?.visitedNodes).toBe(count);
+    expect(result.diagnostics?.truncated).toBe(false);
+    expect(result.limitations.some(line => line.includes('node inspection limit'))).toBe(false);
+  });
+
 });

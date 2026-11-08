@@ -1,8 +1,10 @@
 import type { Tree } from 'web-tree-sitter';
 import type { CallSite, ParseResult } from './types';
 
-const MAX_NODES = 500_000;
-const MAX_CALLS = 15_000;
+// Higher ceilings allow large Windhawk mods to finish their AST inspection.
+// The browser still has a separate source-size and execution-time safeguard.
+export const MAX_AST_NODES = 2_000_000;
+export const MAX_AST_CALLS = 60_000;
 const MAX_SAMPLES = 8;
 
 /** Collect syntax-level call sites and concrete parser diagnostics.
@@ -32,7 +34,7 @@ export function inspectSyntaxTree(source: string, tree: Tree): ParseResult {
     }
     if (node.type === 'call_expression') {
       callSites++;
-      if (calls.length < MAX_CALLS) {
+      if (calls.length < MAX_AST_CALLS) {
         const fn = node.childForFieldName('function');
         const args = node.childForFieldName('arguments');
         if (fn && args) {
@@ -46,7 +48,7 @@ export function inspectSyntaxTree(source: string, tree: Tree): ParseResult {
         }
       } else callLimitReached = true;
     }
-    if (visitedNodes >= MAX_NODES) { nodeLimitReached = true; break; }
+    if (visitedNodes >= MAX_AST_NODES) { nodeLimitReached = true; break; }
     if (cursor.gotoFirstChild()) continue;
     let next = cursor.gotoNextSibling();
     while (!next) {
@@ -59,8 +61,8 @@ export function inspectSyntaxTree(source: string, tree: Tree): ParseResult {
   if (syntaxErrors || missingNodes) limitations.push(
     `The C++ parser encountered ${syntaxErrors} error region(s) and ${missingNodes} missing token(s). Macros, conditional compilation or incomplete context may explain these. Some calls may be missed; this does not prove the source is invalid.`,
   );
-  if (callLimitReached) limitations.push('The 15,000-call inspection limit was reached; some calls were not analyzed.');
-  if (nodeLimitReached) limitations.push('The 500,000-node inspection limit was reached; the syntax tree was not fully inspected.');
+  if (callLimitReached) limitations.push(`The ${MAX_AST_CALLS.toLocaleString('en-US')}-call inspection limit was reached; some calls were not analyzed.`);
+  if (nodeLimitReached) limitations.push(`The ${MAX_AST_NODES.toLocaleString('en-US')}-node inspection limit was reached; the syntax tree was not fully inspected.`);
   return {
     calls,
     coverage: 'ast',
