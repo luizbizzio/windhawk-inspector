@@ -53,7 +53,7 @@ async function parseSource(source: string): Promise<ParseResult> {
       if (!next) break;
     }
     const limitations: string[] = [];
-    if (tree.rootNode.hasError) limitations.push('C++ syntax contains parser errors; some calls may be missed or misinterpreted.');
+    if (tree.rootNode.hasError) limitations.push('The parser flagged some C++ constructs as incomplete or ambiguous. Macros and project-specific syntax can cause this; the source is not necessarily invalid. Some calls may be missed.');
     if (calls.length === 15_000) limitations.push('Call site limit reached; findings may be incomplete.');
     tree.delete();
     return { calls, coverage: 'ast', limitations };

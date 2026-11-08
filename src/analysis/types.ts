@@ -1,7 +1,7 @@
 export const CATEGORIES = [
   'Network', 'Downloads', 'File System', 'Registry', 'Process Execution',
   'Memory', 'Hooks & Injection', 'Persistence', 'Privileges',
-  'Dynamic Loading', 'Sensitive Data', 'Metadata',
+  'Dynamic Loading', 'Input & Shortcuts', 'Sensitive Data', 'Metadata',
 ] as const;
 export type Category = typeof CATEGORIES[number];
 export type Severity = 'info' | 'low' | 'medium' | 'high';

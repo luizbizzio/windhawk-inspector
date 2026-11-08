@@ -113,8 +113,8 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   const counts = CATEGORIES.map(c=>[c,report.findings.filter(f=>f.category===c).length] as const).filter(([,n])=>n>0);
   function jumpTo(line:number) { setFocusLine(line); document.querySelector('.viewer')?.scrollIntoView({behavior:'smooth'}); }
   return <section className="results">
-    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?'AST parsed':'Limited lexical scan'}</span></div>
-    <div className="stats"><div><strong>{report.findings.length}</strong><span>Findings</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{report.findings.filter(f=>f.severity==='high').length}</strong><span>High severity</span></div><div><strong>{report.sourceLines.toLocaleString()}</strong><span>Lines of code</span></div></div>
+    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?'C++ syntax parsed':'Limited lexical scan'}</span></div>
+    <div className="stats"><div><strong>{report.findings.length}</strong><span>Findings</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{report.findings.filter(f=>f.severity==='high'||f.severity==='medium').length}</strong><span>Review suggested</span></div><div><strong>{report.sourceLines.toLocaleString()}</strong><span>Lines of code</span></div></div>
     <div className="meta-grid"><div><span>Included processes</span><strong>{report.metadata.includes.join(', ') || 'Not declared'}</strong></div><div><span>Excluded processes</span><strong>{report.metadata.excludes.join(', ') || 'None declared'}</strong></div><div><span>SHA-256</span><code title={report.sha256}>{report.sha256.slice(0,18)}…</code></div><div><span>Analyzed</span><strong>{new Date(report.analyzedAt).toLocaleString()}</strong></div></div>
     <div className="section-heading"><h3>Capabilities & findings</h3><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
     <div className="filters"><input aria-label="Search findings" placeholder="Search findings..." value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Filter category" value={category} onChange={e=>setCategory(e.target.value as Category|'All')}><option value="All">All categories</option>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select><select aria-label="Filter severity" value={severity} onChange={e=>setSeverity(e.target.value)}><option value="all">All severities</option>{SEVERITY_ORDER.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
@@ -155,16 +155,52 @@ export default function App() {
   }
   const loadSample=()=>{setInput({mode:'paste',code:sample,url:''});setError('');};
   return <div className="app">
-    <header className="site-header"><div className="wrap header-inner"><a className="brand" href="./" aria-label="Windhawk Inspector home"><span className="brand-icon"><Icon name="shield" size={24}/></span><span>Windhawk <strong>Inspector</strong></span></a><nav><a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer"><Icon name="github" size={18}/> GitHub</a></nav></div></header>
-    <main className="wrap"><section className="hero"><p className="eyebrow"><span className="status-dot"/> OPEN SOURCE · BROWSER-BASED SECURITY ANALYSIS</p><h1>Know what a mod <em>can do.</em><br/>Before you install it.</h1><p className="subtitle">Inspect Windhawk mod source code for network access, file operations, registry changes, process execution, hooks and more. No installation. No code execution.</p><div className="hero-tags"><span><Icon name="check" size={15}/> Local analysis</span><span><Icon name="check" size={15}/> C++ source</span><span><Icon name="check" size={15}/> Evidence by line</span></div></section>
-    <div className="workspace"><div className="workspace-top"><div><p className="eyebrow">START INSPECTION</p><h2>Analyze a mod</h2></div><button type="button" className="text-button" onClick={loadSample} disabled={busy}>Load example →</button></div>
-    <SourcePanel title="Current version" data={input} setData={setInput} disabled={busy}/>
-    <label className="compare-toggle"><input type="checkbox" checked={compare} disabled={busy} onChange={e=>setCompare(e.target.checked)}/><span><strong>Compare two versions</strong><small>See newly introduced or removed capabilities</small></span><Icon name="compare" size={20}/></label>
-    {compare && <SourcePanel title="Previous version" data={before} setData={setBefore} disabled={busy}/>}
-    {error && <div className="error" role="alert"><Icon name="alert" size={18}/>{error}</div>}
-    <div className="action-line"><button type="button" className="primary" onClick={analyze} disabled={busy}><Icon name="search" size={20}/>{busy?'Analyzing source...':'Analyze security'}</button><span className="muted tiny">Files & pasted code stay in your browser. URL sources are fetched from GitHub.</span></div></div>
-    <div id="results">{result && <><ReportView report={result.report} source={result.source} focusLine={focusLine} setFocusLine={setFocusLine}/>{previous && <DiffView previous={previous} current={result.report}/>}</>}</div>
-    <section className="about"><div><Icon name="shield" size={23}/><h3>Transparency, not certification.</h3><p>Windhawk mods run native C++ code in Windows processes. This inspector reports detectable source-code capabilities and their evidence. It cannot certify safety, observe actual runtime behavior or inspect missing dependencies.</p></div><div><Icon name="file" size={23}/><h3>Your source stays local.</h3><p>Files and pasted code are processed inside your browser. A link is fetched directly from the public GitHub source. There is no backend, account, database or telemetry in this application.</p></div></section>
-    </main><footer className="footer"><div className="wrap footer-inner"><span>Windhawk Inspector · Open-source static analysis</span><span>Independent project, not affiliated with Windhawk.</span></div></footer>
+    <main className="wrap main">
+      <div className="page-heading">
+        <div className="page-heading-copy">
+          <div className="page-title-row">
+            <span className="brand-mark page-logo" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="36" height="36" /></span>
+            <h1>Windhawk Inspector</h1>
+          </div>
+          <p>Understand what a Windhawk mod can do. Check C++ source for sensitive capabilities, with evidence from the code.</p>
+        </div>
+        <div className="page-heading-meta">
+          <nav className="page-links" aria-label="Project links">
+            <a href="https://windhawk.net/" target="_blank" rel="noopener noreferrer">Windhawk ↗</a>
+            <a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Windhawk Badges ↗</a>
+            <a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+          </nav>
+          <div className="catalog-summary">Static analysis · Local processing · No installation</div>
+        </div>
+      </div>
+
+      <section className="workspace panel" aria-labelledby="analyze-title">
+        <div className="workspace-top panel-heading">
+          <div><p className="eyebrow">SOURCE ANALYZER</p><h2 id="analyze-title">Analyze a mod</h2></div>
+          <button type="button" className="secondary compact" onClick={loadSample} disabled={busy}>Load example</button>
+        </div>
+        <SourcePanel title="Current version" data={input} setData={setInput} disabled={busy}/>
+        <label className="compare-toggle">
+          <input type="checkbox" checked={compare} disabled={busy} onChange={e=>setCompare(e.target.checked)}/>
+          <span><strong>Compare versions</strong><small>Show added and removed capabilities</small></span>
+        </label>
+        {compare && <SourcePanel title="Previous version" data={before} setData={setBefore} disabled={busy}/>}
+        {error && <div className="error" role="alert"><Icon name="alert" size={18}/>{error}</div>}
+        <div className="action-line">
+          <button type="button" className="primary" onClick={analyze} disabled={busy}><Icon name="search" size={16}/>{busy?'Analyzing...':'Analyze source'}</button>
+          <span className="muted tiny">Uploaded files and pasted code never leave your browser. URL sources are fetched directly.</span>
+        </div>
+      </section>
+
+      <div id="results">{result && <><ReportView report={result.report} source={result.source} focusLine={focusLine} setFocusLine={setFocusLine}/>{previous && <DiffView previous={previous} current={result.report}/>}</>}</div>
+      <p className="disclaimer"><Icon name="alert" size={16}/> This tool shows possible source-code capabilities, not what happens at runtime. No findings does not mean a mod is safe.</p>
+    </main>
+    <footer className="footer"><div className="wrap footer-inner">
+      <div className="footer-main">
+        <div className="footer-brand"><span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="31" height="31"/></span><div><strong>Windhawk Inspector</strong><p>Open-source static analysis for Windhawk mods.</p></div></div>
+        <div className="footer-links"><a href="https://windhawk.net/" target="_blank" rel="noopener noreferrer">Windhawk</a><a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Windhawk Badges</a><a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+      </div>
+      <div className="footer-bottom"><span>Independent project, not affiliated with Windhawk.</span><span>No tracking · No server uploads · MIT License</span></div>
+    </div></footer>
   </div>;
 }

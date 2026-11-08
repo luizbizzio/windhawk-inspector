@@ -66,3 +66,46 @@ describe('reports', () => {
     expect(report.limitations.length).toBeGreaterThan(0);
   });
 });
+
+describe('Taskbar Zones regression checks', () => {
+  it('does not mistake std::remove on vectors for deleting files', () => {
+    const code = `normalized.leftOrder.erase(std::remove(normalized.leftOrder.begin(), normalized.leftOrder.end(), id), normalized.leftOrder.end());
+order.erase(std::remove(order.begin(), order.end(), id), order.end());
+next.leftOrder.erase(std::remove(next.leftOrder.begin(), next.leftOrder.end(), gesture.appId), next.leftOrder.end());
+next.rightOrder.erase(std::remove(next.rightOrder.begin(), next.rightOrder.end(), gesture.appId), next.rightOrder.end());
+next.rightIds.erase(std::remove(next.rightIds.begin(), next.rightIds.end(), gesture.appId), next.rightIds.end());`;
+    const found = findingsFromCalls(findLexicalCalls(code));
+    expect(found.filter(f=>f.ruleId==='fs-delete')).toHaveLength(0);
+    expect(findingsFromCalls(findLexicalCalls('std::filesystem::remove(path);')).some(f=>f.ruleId==='fs-delete')).toBe(true);
+    expect(findingsFromCalls(findLexicalCalls('DeleteFileW(L"file.txt");')).some(f=>f.ruleId==='fs-delete')).toBe(true);
+  });
+
+  it('recognizes Escape checks as shortcut behavior, not sensitive data collection', () => {
+    const found = findingsFromCalls(findLexicalCalls('if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) CancelSectionGesture();'));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ ruleId: 'input-keys', severity: 'info', category: 'Input & Shortcuts', title: 'Specific key state check' });
+  });
+
+  it('provides context for known System32 DLL and loader resolution', () => {
+    const code = `auto taskbar = LoadLibraryExW(L"taskbar.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+GetProcAddress(kernelBase, "LoadLibraryExW");`;
+    const found = findingsFromCalls(findLexicalCalls(code));
+    expect(found.map(f=>f.title)).toEqual(['System32 library loading', 'Windows API resolution']);
+    expect(found.every(f=>f.severity==='info')).toBe(true);
+  });
+
+  it('keeps a dangerous DLL search and filesystem deletion visible', () => {
+    const code = `LoadLibraryW(L"C:\\\\Users\\\\Public\\\\unknown.dll");
+DeleteFileW(L"C:\\\\Users\\\\Public\\\\temp.txt");`;
+    const found = findingsFromCalls(findLexicalCalls(code));
+    expect(found.map(f=>f.ruleId)).toContain('dll-load');
+    expect(found.map(f=>f.ruleId)).toContain('fs-delete');
+    expect(found.find(f=>f.ruleId==='dll-load')?.severity).toBe('low');
+    expect(found.find(f=>f.ruleId==='fs-delete')?.severity).toBe('medium');
+  });
+
+  it('does not treat standard algorithm calls as sockets', () => {
+    const found = findingsFromCalls(findLexicalCalls('std::ranges::connect(a); QObject::connect(a,b); std::send(a);'));
+    expect(found.filter(f=>f.ruleId==='net-sockets')).toHaveLength(0);
+  });
+});

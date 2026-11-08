@@ -9,19 +9,23 @@ Windhawk Inspector is a browser-based, open-source C++ source analyzer for [Wind
 ## What it does
 
 - Input via Windhawk catalog URL, public GitHub source URL, local `.wh.cpp`/`.cpp`/`.h`/`.hpp`/`.txt` file, or pasted C++ code.
-- Classifies source-level findings across network, downloads, file system, Registry, process execution, cross-process memory, hooks, persistence, privileges, dynamic loading, sensitive data and Windhawk metadata.
+- Classifies source-level findings across network, downloads, file system, Registry, process execution, cross-process memory, hooks, persistence, privileges, dynamic loading, input/shortcuts, sensitive data and Windhawk metadata.
 - Shows exact source lines, API names, arguments (raw source text), explanations, review suggestions, process includes/excludes, SHA-256 and analysis coverage.
 - Compares two versions and identifies added/removed source-level findings.
 - Exports JSON and standalone HTML reports.
 - Runs analysis in Web Workers. A Tree-sitter C++ WebAssembly parser is used when available, with a clearly labeled limited lexical fallback.
 - Does **not** upload files, paste content or analysis results to a backend. Public URL analysis fetches source directly from GitHub.
 
+## Design
+
+Windhawk-inspired minimal dark interface.
+
 ## Usage
 
 1. Open the hosted page, or run the project locally.
 2. Paste a Windhawk mod URL, select a source file, or paste C++ code.
 3. Optionally enable version comparison and provide the previous source.
-4. Select **Analyze security**.
+4. Select **Analyze source**.
 5. Inspect evidence, limitations and reports.
 
 ### Supported URLs
@@ -54,10 +58,10 @@ The GitHub Actions workflow builds the app with a `/windhawk-inspector/` base pa
 - **Detected**: a matching API or declared capability is visible in the provided source.
 - **Potential**: a matching source pattern exists but cannot establish intent or actual runtime behavior.
 - **Not detected**: no matching rule was found in the supplied code; **never** an assurance of absence.
-- **AST parsed**: the C++ syntax tree was available (but not full C++ compilation, linking, dataflow or runtime analysis).
+- **C++ syntax parsed**: the C++ syntax tree was available (but not full C++ compilation, linking, dataflow or runtime analysis).
 - **Limited lexical scan**: WebAssembly parsing was unavailable; detection has reduced reliability.
 
-Severity describes review priority, not the probability of maliciousness. Normal Windhawk hooks are marked informational unless combined with other capabilities. Comments and ordinary string literals are excluded from lexical call matching, but macros and indirect calls can still evade detection.
+Severity describes review priority, not the probability of maliciousness. Normal Windhawk hooks are marked informational. Common C++ algorithms, shortcut keys and System32 DLL loading are handled contextually to reduce false positives. Comments and ordinary string literals are excluded from lexical call matching, but macros and indirect calls can still evade detection.
 
 ## Important limitations
 

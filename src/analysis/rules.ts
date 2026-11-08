@@ -27,7 +27,7 @@ export const RULES: Rule[] = [
   { id: 'reg-read', symbols: ['RegQueryValueExA','RegQueryValueExW','RegGetValueA','RegGetValueW','RegEnumKeyExA','RegEnumKeyExW'], category: 'Registry', severity: 'low', title: 'Registry read', explanation: 'The code reads Windows Registry values or enumerates keys.', recommendation: 'Check the accessed keys and whether they contain sensitive settings.' },
   { id: 'reg-write', symbols: ['RegSetValueExA','RegSetValueExW','RegCreateKeyExA','RegCreateKeyExW','RegDeleteValueA','RegDeleteValueW','RegDeleteKeyA','RegDeleteKeyW','RegDeleteTreeA','RegDeleteTreeW'], category: 'Registry', severity: 'medium', title: 'Registry modification', explanation: 'The source can create, edit or remove Registry data.', recommendation: 'Check target keys and persistence or system configuration implications.' },
   { id: 'exec-process', symbols: ['CreateProcessA','CreateProcessW','CreateProcessAsUserA','CreateProcessAsUserW','WinExec','ShellExecuteA','ShellExecuteW','ShellExecuteExA','ShellExecuteExW','system','_wsystem','_popen','_wpopen'], category: 'Process Execution', severity: 'high', title: 'External process execution', explanation: 'The mod includes a way to start another program or execute a shell command.', recommendation: 'Inspect the executable, arguments, user input and execution conditions.' },
-  { id: 'exec-com', symbols: ['CoCreateInstance','CoGetClassObject'], category: 'Process Execution', severity: 'low', title: 'COM object activation', explanation: 'COM activation may create an in-process or out-of-process component. It is not necessarily process execution.', recommendation: 'Identify the COM class and expected role.', certainty: 'potential' },
+  { id: 'exec-com', symbols: ['CoCreateInstance','CoGetClassObject'], category: 'Dynamic Loading', severity: 'info', title: 'COM object activation', explanation: 'COM activation may create an in-process or out-of-process component. It is not necessarily process execution.', recommendation: 'Identify the COM class and expected role.', certainty: 'potential' },
   { id: 'mem-other', symbols: ['OpenProcess','ReadProcessMemory','WriteProcessMemory','VirtualProtectEx','VirtualAllocEx','VirtualFreeEx'], category: 'Memory', severity: 'medium', title: 'Cross-process memory operation', explanation: 'The code requests a process handle or performs a memory operation that may affect another process.', recommendation: 'Check targeted PIDs, access rights and memory operations.', certainty: 'potential' },
   { id: 'mem-inject', symbols: ['CreateRemoteThread','CreateRemoteThreadEx','NtCreateThreadEx','QueueUserAPC','NtQueueApcThread'], category: 'Hooks & Injection', severity: 'high', title: 'Remote execution primitive', explanation: 'The code contains an API frequently used for executing code in another process.', recommendation: 'Verify the intended target and why remote execution is needed.' },
   { id: 'hook-windhawk', symbols: ['Wh_SetFunctionHook','Wh_SetFunctionHookT','Wh_RemoveFunctionHook'], category: 'Hooks & Injection', severity: 'info', title: 'Windhawk hook', explanation: 'This is a normal Windhawk modding capability. A hook alone is not evidence of malicious behavior.', recommendation: 'Review which function is hooked and whether the modification matches the mod description.' },
@@ -36,9 +36,9 @@ export const RULES: Rule[] = [
   { id: 'persist-task', symbols: ['SchRpcRegisterTask','RegisterTask','RegisterTaskDefinition'], category: 'Persistence', severity: 'high', title: 'Scheduled task registration', explanation: 'The code may register a task that runs automatically.', recommendation: 'Review the task trigger, action and account.', certainty: 'potential' },
   { id: 'priv-token', symbols: ['AdjustTokenPrivileges','OpenProcessToken','SetTokenInformation','DuplicateTokenEx'], category: 'Privileges', severity: 'medium', title: 'Access token operation', explanation: 'The code manipulates or inspects security access tokens.', recommendation: 'Check which privileges are requested and whether elevation is necessary.', certainty: 'potential' },
   { id: 'priv-elevate', symbols: ['ShellExecuteA','ShellExecuteW','ShellExecuteExA','ShellExecuteExW'], category: 'Privileges', severity: 'medium', title: 'Potential elevation request', explanation: 'ShellExecute can request elevation when passed the runas verb; the call itself does not prove elevation.', recommendation: 'Check whether the verb is runas and whether an elevation prompt is expected.', certainty: 'potential' },
-  { id: 'dll-load', symbols: ['LoadLibraryA','LoadLibraryW','LoadLibraryExA','LoadLibraryExW','GetProcAddress','LdrLoadDll','LdrGetProcedureAddress'], category: 'Dynamic Loading', severity: 'medium', title: 'Dynamic code or API loading', explanation: 'The code loads a library or obtains an API address dynamically. Indirect calls may not be fully traceable.', recommendation: 'Verify the library path and resolved export names.', certainty: 'potential' },
+  { id: 'dll-load', symbols: ['LoadLibraryA','LoadLibraryW','LoadLibraryExA','LoadLibraryExW','GetProcAddress','LdrLoadDll','LdrGetProcedureAddress'], category: 'Dynamic Loading', severity: 'low', title: 'Dynamic code or API loading', explanation: 'The code loads a library or obtains an API address dynamically. Indirect calls may not be fully traceable.', recommendation: 'Verify the library path and resolved export names.', certainty: 'potential' },
   { id: 'cred-win', symbols: ['CredReadA','CredReadW','CredEnumerateA','CredEnumerateW','LsaRetrievePrivateData','CryptUnprotectData','PFXImportCertStore'], category: 'Sensitive Data', severity: 'high', title: 'Sensitive data or credential API', explanation: 'The source uses APIs that can access protected data, credentials or certificate material.', recommendation: 'Review exactly what data is accessed and whether it leaves the device.', certainty: 'potential' },
-  { id: 'input-keys', symbols: ['GetAsyncKeyState','GetKeyState','GetKeyboardState','SetWindowsHookExA','SetWindowsHookExW'], category: 'Sensitive Data', severity: 'low', title: 'Keyboard state or event access', explanation: 'The code can inspect keyboard state or install a Windows event hook. This is common for shortcuts and does not prove keylogging.', recommendation: 'Inspect callbacks and any storage or transmission of input.', certainty: 'potential' },
+  { id: 'input-keys', symbols: ['GetAsyncKeyState','GetKeyState','GetKeyboardState','SetWindowsHookExA','SetWindowsHookExW'], category: 'Input & Shortcuts', severity: 'low', title: 'Keyboard state or event access', explanation: 'The code can inspect keyboard state or install a Windows event hook. This is common for shortcuts and does not prove keylogging.', recommendation: 'Inspect callbacks and any storage or transmission of input.', certainty: 'potential' },
 ];
 
 const lookup = new Map<string, Rule[]>();
@@ -52,6 +52,50 @@ export function normalizeSymbol(name: string): string {
   return name.replace(/<[^<>]*>/g, '').split(/::|->|\./).at(-1)?.trim().replace(/^\*+/, '') ?? '';
 }
 
+// Rule-specific context checks prevent generic C++ names from being treated as Win32 APIs.
+// These checks are conservative heuristics, not full type/data-flow analysis.
+function shouldSuppress(call: CallSite, rule: Rule, symbol: string): boolean {
+  const qualified = call.name.replace(/\s+/g, '');
+  if (rule.id === 'fs-delete' && symbol === 'remove') {
+    if (/\bstd::(?:ranges::)?remove$/.test(qualified) || /\bboost::range::remove$/.test(qualified)) return true;
+    if (!qualified.includes('filesystem::') && (call.args.match(/,/g) ?? []).length >= 2) return true;
+  }
+  if (rule.id === 'net-sockets' && /\b(?:std::|ranges::|QObject::|boost::signals2::)/.test(qualified)) return true;
+  return false;
+}
+
+function refineCall(call: CallSite, rule: Rule, symbol: string): Pick<Finding, 'severity' | 'category' | 'certainty' | 'title' | 'explanation' | 'recommendation'> | null {
+  const args = call.args;
+  if (rule.id === 'input-keys' && ['GetAsyncKeyState', 'GetKeyState'].includes(symbol)) {
+    const m = args.trim().match(/^(VK_[A-Z0-9_]+|0x[0-9a-fA-F]+|\d+)$/);
+    if (m) return {
+      severity: 'info', category: 'Input & Shortcuts', certainty: 'detected',
+      title: 'Specific key state check',
+      explanation: `The mod checks the state of ${m[1]}. This can support a shortcut, cancellation or modifier check; it is not evidence of keylogging.`,
+      recommendation: 'Confirm how the result is used. Look for collection or transmission of multiple keystrokes before calling it keylogging.',
+    };
+  }
+  if (rule.id === 'dll-load') {
+    if (/^LoadLibrary(?:Ex)?[AW]$/.test(symbol) && /LOAD_LIBRARY_SEARCH_SYSTEM32/.test(args) && /^\s*L?"[^"\\/:]+\.dll"\s*,/i.test(args)) {
+      return {
+        severity: 'info', category: 'Dynamic Loading', certainty: 'detected',
+        title: 'System32 library loading',
+        explanation: 'This call loads a named DLL using the System32-only search flag. It is common for Windows integration and is not an external download.',
+        recommendation: 'Confirm the DLL is expected for the feature. The analysis does not verify the library contents at runtime.',
+      };
+    }
+    if (symbol === 'GetProcAddress' && /(?:kernelBase|kernel32|hKernelBase|hKernel32)/i.test(args) && /"(?:LoadLibraryExW|LoadLibraryExA|GetProcAddress)"/.test(args)) {
+      return {
+        severity: 'info', category: 'Dynamic Loading', certainty: 'detected',
+        title: 'Windows API resolution',
+        explanation: 'The mod resolves a Windows loader function from a system module. This is a common compatibility or hooking technique.',
+        recommendation: 'Review the use of the resolved function and the hook target, not the lookup alone.',
+      };
+    }
+  }
+  return null;
+}
+
 export function findingsFromCalls(calls: CallSite[]): Finding[] {
   const output: Finding[] = [];
   const seen = new Set<string>();
@@ -60,11 +104,13 @@ export function findingsFromCalls(calls: CallSite[]): Finding[] {
     for (const rule of lookup.get(symbol) ?? []) {
       const key = `${rule.id}:${call.line}:${call.column}`;
       if (seen.has(key)) continue;
+      if (shouldSuppress(call, rule, symbol)) continue;
+      const refined = refineCall(call, rule, symbol);
       seen.add(key);
       output.push({
-        id: key, ruleId: rule.id, category: rule.category, severity: rule.severity,
-        certainty: rule.certainty ?? 'detected', title: rule.title,
-        explanation: rule.explanation, recommendation: rule.recommendation,
+        id: key, ruleId: rule.id, category: refined?.category ?? rule.category, severity: refined?.severity ?? rule.severity,
+        certainty: refined?.certainty ?? rule.certainty ?? 'detected', title: refined?.title ?? rule.title,
+        explanation: refined?.explanation ?? rule.explanation, recommendation: refined?.recommendation ?? rule.recommendation,
         line: call.line, column: call.column, symbol,
         excerpt: call.excerpt.trim().slice(0, 350), arguments: call.args.slice(0, 500),
       });
