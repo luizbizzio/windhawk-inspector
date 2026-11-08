@@ -24,7 +24,7 @@ export const RULES: Rule[] = [
   { id: 'fs-write', symbols: ['WriteFile','WriteFileEx','fwrite','_write'], category: 'File System', severity: 'medium', title: 'File or handle write', explanation: 'The source writes to a handle or stream, potentially modifying local files.', recommendation: 'Identify the actual destination handle and expected output.', certainty: 'potential' },
   { id: 'fs-delete', symbols: ['DeleteFileA','DeleteFileW','RemoveDirectoryA','RemoveDirectoryW','remove','_wremove','DeleteFile2'], category: 'File System', severity: 'medium', title: 'Delete operation', explanation: 'The source includes an operation that can delete a file or directory.', recommendation: 'Check the path and conditions that trigger deletion.', certainty: 'potential' },
   { id: 'fs-move', symbols: ['MoveFileA','MoveFileW','MoveFileExA','MoveFileExW','CopyFileA','CopyFileW','CopyFile2','ReplaceFileA','ReplaceFileW'], category: 'File System', severity: 'low', title: 'File copy or move', explanation: 'The code can copy, rename or replace files.', recommendation: 'Check source and destination paths.' },
-  { id: 'reg-read', symbols: ['RegQueryValueExA','RegQueryValueExW','RegGetValueA','RegGetValueW','RegEnumKeyExA','RegEnumKeyExW'], category: 'Registry', severity: 'low', title: 'Registry read', explanation: 'The code reads Windows Registry values or enumerates keys.', recommendation: 'Check the accessed keys and whether they contain sensitive settings.' },
+  { id: 'reg-read', symbols: ['RegQueryValueExA','RegQueryValueExW','RegGetValueA','RegGetValueW','RegEnumKeyExA','RegEnumKeyExW','RegOpenKeyExA','RegOpenKeyExW'], category: 'Registry', severity: 'low', title: 'Registry read or key open', explanation: 'The code opens a Registry key for access, reads a value or enumerates keys. Opening a key alone does not prove data was read.', recommendation: 'Check the accessed keys and whether they contain sensitive settings.' },
   { id: 'reg-write', symbols: ['RegSetValueExA','RegSetValueExW','RegCreateKeyExA','RegCreateKeyExW','RegDeleteValueA','RegDeleteValueW','RegDeleteKeyA','RegDeleteKeyW','RegDeleteTreeA','RegDeleteTreeW'], category: 'Registry', severity: 'medium', title: 'Registry modification', explanation: 'The source can create, edit or remove Registry data.', recommendation: 'Check target keys and persistence or system configuration implications.' },
   { id: 'exec-process', symbols: ['CreateProcessA','CreateProcessW','CreateProcessAsUserA','CreateProcessAsUserW','WinExec','ShellExecuteA','ShellExecuteW','ShellExecuteExA','ShellExecuteExW','system','_wsystem','_popen','_wpopen'], category: 'Process Execution', severity: 'high', title: 'External process execution', explanation: 'The mod includes a way to start another program or execute a shell command.', recommendation: 'Inspect the executable, arguments, user input and execution conditions.' },
   { id: 'exec-com', symbols: ['CoCreateInstance','CoGetClassObject'], category: 'Dynamic Loading', severity: 'info', title: 'COM object activation', explanation: 'COM activation may create an in-process or out-of-process component. It is not necessarily process execution.', recommendation: 'Identify the COM class and expected role.', certainty: 'potential' },
@@ -52,6 +52,28 @@ export function normalizeSymbol(name: string): string {
   return name.replace(/<[^<>]*>/g, '').split(/::|->|\./).at(-1)?.trim().replace(/^\*+/, '') ?? '';
 }
 
+/** Best-effort split of top-level C++ call arguments, respecting basic nested expressions and literals. */
+function splitCallArguments(raw: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote = '';
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (quote) {
+      if (c === '\\') { i++; continue; }
+      if (c === quote) quote = '';
+      continue;
+    }
+    if (c === '"' || c === "'") { quote = c; continue; }
+    if ('([{'.includes(c)) { depth++; continue; }
+    if (')]}'.includes(c)) { depth = Math.max(0, depth - 1); continue; }
+    if (c === ',' && depth === 0) { out.push(raw.slice(start,i).trim()); start = i+1; }
+  }
+  out.push(raw.slice(start).trim());
+  return out;
+}
+
 // Rule-specific context checks prevent generic C++ names from being treated as Win32 APIs.
 // These checks are conservative heuristics, not full type/data-flow analysis.
 function shouldSuppress(call: CallSite, rule: Rule, symbol: string): boolean {
@@ -61,11 +83,41 @@ function shouldSuppress(call: CallSite, rule: Rule, symbol: string): boolean {
     if (!qualified.includes('filesystem::') && (call.args.match(/,/g) ?? []).length >= 2) return true;
   }
   if (rule.id === 'net-sockets' && /\b(?:std::|ranges::|QObject::|boost::signals2::)/.test(qualified)) return true;
+  if (rule.id === 'priv-elevate' && /^ShellExecute[AW]$/.test(symbol)) {
+    const verb = splitCallArguments(call.args)[1] ?? '';
+    // A literal open/edit/print verb is not an elevation request.
+    if (/^(?:L|u8|u|U)?"(?:open|edit|print|explore|find|properties)"$/i.test(verb)) return true;
+  }
   return false;
 }
 
 function refineCall(call: CallSite, rule: Rule, symbol: string): Pick<Finding, 'severity' | 'category' | 'certainty' | 'title' | 'explanation' | 'recommendation'> | null {
   const args = call.args;
+  if (rule.id === 'fs-create') {
+    const parts = splitCallArguments(args);
+    let access = '';
+    if (/^(?:CreateFile[AW]|CreateFile2)$/.test(symbol)) access = parts[1] ?? '';
+    else if (['fopen','_wfopen','_fsopen'].includes(symbol)) access = parts[1] ?? '';
+    let read = /\b(?:GENERIC_READ|FILE_GENERIC_READ|FILE_READ_DATA|FILE_READ_ATTRIBUTES)\b/.test(access);
+    let write = /\b(?:GENERIC_WRITE|FILE_GENERIC_WRITE|FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_ALL_ACCESS|GENERIC_ALL)\b/.test(access);
+    const mode = access.match(/^(?:L|u8|u|U)?"([rwaxtbe+]+)"$/i)?.[1];
+    if (mode) { read ||= mode.includes('r') || mode.includes('+'); write ||= /[wax+]/.test(mode); }
+    if (read || write) return {
+      severity: write ? 'medium' : 'low', category: 'File System', certainty: 'detected',
+      title: read && write ? 'File/handle read and write access' : write ? 'File/handle write access' : 'File/handle read access',
+      explanation: `The source requests ${read && write ? 'read and write' : write ? 'write' : 'read'} access to a file or handle. The call may not succeed; its target can also be a device or pipe.`,
+      recommendation: 'Review the target path or device and how the opened handle is used.',
+    };
+  }
+  if (rule.id === 'priv-elevate' && /^ShellExecute[AW]$/.test(symbol)) {
+    const verb = splitCallArguments(args)[1] ?? '';
+    if (/^(?:L|u8|u|U)?"runas"$/i.test(verb)) return {
+      severity: 'medium', category: 'Privileges', certainty: 'detected',
+      title: 'Explicit elevation verb',
+      explanation: 'The call explicitly requests the runas verb, which can trigger a Windows elevation prompt.',
+      recommendation: 'Verify the executable being elevated and why administrative access is requested.',
+    };
+  }
   if (rule.id === 'input-keys' && ['GetAsyncKeyState', 'GetKeyState'].includes(symbol)) {
     const m = args.trim().match(/^(VK_[A-Z0-9_]+|0x[0-9a-fA-F]+|\d+)$/);
     if (m) return {

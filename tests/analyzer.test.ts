@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { findLexicalCalls, maskNonCode } from '../src/analysis/lexical';
 import { parseMetadata } from '../src/analysis/metadata';
 import { findingsFromCalls, findingsFromMetadata } from '../src/analysis/rules';
-import { buildReport, compareReports, reportHtml } from '../src/analysis/report';
+import { buildReport, compareReports, groupFindings, reportHtml } from '../src/analysis/report';
 import { resolveSourceUrl } from '../src/analysis/url';
 
 describe('Windhawk metadata', () => {
@@ -107,5 +107,77 @@ DeleteFileW(L"C:\\\\Users\\\\Public\\\\temp.txt");`;
   it('does not treat standard algorithm calls as sockets', () => {
     const found = findingsFromCalls(findLexicalCalls('std::ranges::connect(a); QObject::connect(a,b); std::send(a);'));
     expect(found.filter(f=>f.ruleId==='net-sockets')).toHaveLength(0);
+  });
+});
+
+describe('Capability groups and evidence retention', () => {
+  it('groups repeated VK_ESCAPE checks while preserving both source lines and raw JSON', async () => {
+    const code = `void f() {
+  GetAsyncKeyState(VK_ESCAPE);
+  GetAsyncKeyState(VK_ESCAPE);
+  GetAsyncKeyState(VK_SHIFT);
+}`;
+    const report = await buildReport(code, 'keys.wh.cpp');
+    const groups = groupFindings(report.findings);
+    expect(report.findings).toHaveLength(3);
+    expect(groups).toHaveLength(2);
+    expect(groups.find(g=>g.finding.explanation.includes('VK_ESCAPE'))?.occurrences.map(f=>f.line)).toEqual([2,3]);
+    expect(JSON.parse(JSON.stringify(report)).findings).toHaveLength(3);
+    const html = reportHtml(report);
+    expect(html).toContain('2 occurrences');
+    expect(html).toContain('Line 2');
+    expect(html).toContain('Line 3');
+  });
+
+  it('keeps different source evidence for the same API in a single inspectable group', async () => {
+    const report = await buildReport('void f(){RegSetValueExW(a,b,c,d,e,f);RegSetValueExW(a,x,c,d,e,f);}', 'reg.wh.cpp');
+    const groups = groupFindings(report.findings).filter(g=>g.finding.ruleId==='reg-write');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].occurrences).toHaveLength(2);
+    expect(groups[0].occurrences[0].arguments).not.toEqual(groups[0].occurrences[1].arguments);
+  });
+});
+
+describe('Sensitive capability scenario tests', () => {
+  it('detects representative network, download, Registry, process and credential operations', () => {
+    const code = `void scan() {
+      WinHttpSendRequest(handle, headers, 0, nullptr, 0, 0, 0);
+      URLDownloadToFileW(nullptr, L"https://example.test/file", L"C:\\\\Temp\\\\file", 0, nullptr);
+      RegOpenKeyExW(HKEY_CURRENT_USER, L"Software", 0, KEY_READ, &key);
+      RegSetValueExW(key, L"Name", 0, REG_SZ, data, sizeof(data));
+      CreateProcessW(nullptr, command, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &process);
+      CredReadW(L"Name", CRED_TYPE_GENERIC, 0, &result);
+    }`;
+    const rules = new Set(findingsFromCalls(findLexicalCalls(code)).map(f=>f.ruleId));
+    for (const id of ['net-winhttp','dl-url','reg-read','reg-write','exec-process','cred-win']) expect(rules.has(id),id).toBe(true);
+  });
+
+  it('distinguishes file read and write access requests', () => {
+    const code = `CreateFileW(L"C:\\\\Temp\\\\a,b.txt", GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+CreateFileW(L"output.txt", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+fopen("notes.txt", "rb");`;
+    const findings = findingsFromCalls(findLexicalCalls(code)).filter(f=>f.ruleId==='fs-create');
+    expect(findings.map(f=>f.title)).toEqual(['File/handle read access','File/handle write access','File/handle read access']);
+    expect(findings[1].severity).toBe('medium');
+  });
+
+  it('does not label ShellExecute open as an elevation request, but detects runas', () => {
+    const code = `ShellExecuteW(nullptr, L"open", L"notepad.exe", nullptr, nullptr, SW_SHOW);
+ShellExecuteW(nullptr, L"runas", L"tool.exe", nullptr, nullptr, SW_SHOW);`;
+    const findings = findingsFromCalls(findLexicalCalls(code));
+    expect(findings.filter(f=>f.ruleId==='exec-process')).toHaveLength(2);
+    const elevate = findings.filter(f=>f.ruleId==='priv-elevate');
+    expect(elevate).toHaveLength(1);
+    expect(elevate[0].title).toBe('Explicit elevation verb');
+    expect(elevate[0].line).toBe(2);
+  });
+
+  it('preserves file deletion signals and avoids C++ algorithm false positives', () => {
+    const code = `std::remove(items.begin(), items.end(), value);
+std::filesystem::remove(path);
+DeleteFileW(L"a.txt");`;
+    const fileDeletes = findingsFromCalls(findLexicalCalls(code)).filter(f=>f.ruleId==='fs-delete');
+    expect(fileDeletes).toHaveLength(2);
+    expect(fileDeletes.map(f=>f.line)).toEqual([2,3]);
   });
 });

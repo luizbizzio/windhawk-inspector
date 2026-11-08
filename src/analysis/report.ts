@@ -1,9 +1,9 @@
-import type { Finding, ScanReport } from './types';
+import type { Finding, FindingGroup, ParseResult, ScanReport } from './types';
 import { findingsFromCalls, findingsFromMetadata } from './rules';
 import { parseMetadata } from './metadata';
 import { findLexicalCalls } from './lexical';
 
-export const ENGINE_VERSION = '0.1.1';
+export const ENGINE_VERSION = '0.1.2';
 const BASE_LIMITATIONS = [
   'Static source analysis cannot prove what executes at runtime or that a mod is safe.',
   'Macro expansion, external headers/libraries, generated code, indirect calls and dynamic behavior may be missed.',
@@ -20,7 +20,7 @@ export async function hashSource(source: string): Promise<string> {
 export async function buildReport(
   source: string,
   filename: string,
-  parsed?: { calls: ReturnType<typeof findLexicalCalls>; coverage: 'ast' | 'lexical'; limitations: string[] },
+  parsed?: ParseResult,
 ): Promise<ScanReport> {
   const metadata = parseMetadata(source);
   const scan = parsed ?? {
@@ -37,10 +37,32 @@ export async function buildReport(
     sha256: await hashSource(source),
     sourceLines: source.split(/\r?\n/).length,
     coverage: scan.coverage,
+    diagnostics: scan.diagnostics,
     limitations: [...BASE_LIMITATIONS, ...scan.limitations],
     metadata,
     findings,
   };
+}
+
+/** Deduplicate visual findings while preserving every distinct source occurrence.
+ *  Group only calls with the same rule, API, contextual explanation and severity.
+ *  The raw JSON findings array remains unchanged for consumers and comparisons.
+ */
+export function groupFindings(findings: Finding[]): FindingGroup[] {
+  const groups: FindingGroup[] = [];
+  const index = new Map<string, FindingGroup>();
+  for (const finding of findings) {
+    const key = JSON.stringify([finding.ruleId, finding.symbol, finding.title,
+      finding.explanation, finding.severity, finding.certainty, finding.category]);
+    let group = index.get(key);
+    if (!group) {
+      group = { id: finding.id, finding, occurrences: [] };
+      index.set(key, group);
+      groups.push(group);
+    }
+    group.occurrences.push(finding);
+  }
+  return groups;
 }
 
 export interface DiffResult { added: Finding[]; removed: Finding[]; unchanged: number; }
@@ -70,6 +92,12 @@ export function reportFilename(report: ScanReport, ext: 'json' | 'html'): string
 }
 const esc = (input: string) => input.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export function reportHtml(report: ScanReport): string {
-  const rows = report.findings.map(f => `<tr><td>${esc(f.category)}</td><td>${esc(f.severity)}</td><td>${esc(f.certainty)}</td><td>${esc(f.title)}</td><td>${f.line || 'metadata'}</td><td><code>${esc(f.excerpt)}</code><p>${esc(f.explanation)}</p><p><b>Review:</b> ${esc(f.recommendation)}</p></td></tr>`).join('');
-  return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Windhawk Inspector Report</title><style>body{font:15px system-ui;background:#1c1c1c;color:#f2f2f2;max-width:1100px;margin:40px auto;padding:0 20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #3a3a3a;padding:10px;text-align:left;vertical-align:top;overflow-wrap:anywhere}code{white-space:pre-wrap}p{color:#aaa}h1{color:#68bafa}</style></head><body><h1>Windhawk Inspector</h1><p>Static source analysis only. Not a security certificate.</p><h2>${esc(report.metadata.name ?? report.filename)}</h2><p>Engine ${esc(report.engineVersion)} · ${esc(report.analyzedAt)} · ${esc(report.coverage)} parse · SHA-256 ${esc(report.sha256)}</p><h3>Process scope</h3><p>Includes: ${esc(report.metadata.includes.join(', ') || 'Not declared')}<br>Excludes: ${esc(report.metadata.excludes.join(', ') || 'None declared')}</p><h3>Findings (${report.findings.length})</h3><table><thead><tr><th>Category</th><th>Severity</th><th>Confidence</th><th>Finding</th><th>Line</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table><h3>Limitations</h3><ul>${report.limitations.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></body></html>`;
+  const groups = groupFindings(report.findings);
+  const rows = groups.map(({ finding: f, occurrences }) => {
+    const evidence = occurrences.map(o => `<div><b>${o.line ? `Line ${o.line}` : 'Metadata'}</b>: <code>${esc(o.excerpt)}</code></div>`).join('');
+    return `<tr><td>${esc(f.category)}</td><td>${esc(f.severity)}</td><td>${esc(f.certainty)}</td><td>${esc(f.title)} <small>(${occurrences.length} occurrence${occurrences.length===1?'':'s'})</small></td><td>${evidence}<p>${esc(f.explanation)}</p><p><b>Review:</b> ${esc(f.recommendation)}</p></td></tr>`;
+  }).join('');
+  const diag = report.diagnostics;
+  const parserSummary = diag ? `<p>C++ parser: ${diag.syntaxErrorNodes} error regions, ${diag.missingNodes} missing tokens, ${diag.analyzedCalls} analyzed calls${diag.truncated?' (inspection truncated)':''}.</p>${diag.sampledIssueLines.length ? `<p>Examples of ambiguous syntax at lines: ${diag.sampledIssueLines.join(', ')}</p>` : ''}` : '<p>Full parser diagnostics unavailable; lexical fallback or older report.</p>';
+  return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Windhawk Inspector Report</title><style>body{font:15px system-ui;background:#1c1c1c;color:#f2f2f2;max-width:1100px;margin:40px auto;padding:0 20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #3a3a3a;padding:10px;text-align:left;vertical-align:top;overflow-wrap:anywhere}td div{margin-bottom:7px}code{white-space:pre-wrap}p,small{color:#aaa}h1{color:#68bafa}</style></head><body><h1>Windhawk Inspector</h1><p>Static source analysis only. Not a security certificate.</p><h2>${esc(report.metadata.name ?? report.filename)}</h2><p>Engine ${esc(report.engineVersion)} · ${esc(report.analyzedAt)} · ${esc(report.coverage)} parse · SHA-256 ${esc(report.sha256)}</p><h3>Process scope</h3><p>Includes: ${esc(report.metadata.includes.join(', ') || 'Not declared')}<br>Excludes: ${esc(report.metadata.excludes.join(', ') || 'None declared')}</p><h3>Parser coverage</h3>${parserSummary}<h3>Findings (${groups.length} grouped capabilities, ${report.findings.length} occurrences)</h3><table><thead><tr><th>Category</th><th>Severity</th><th>Confidence</th><th>Finding</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table><h3>Limitations</h3><ul>${report.limitations.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></body></html>`;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { CATEGORIES, type Category, type Finding, type ScanReport } from './analysis/types';
-import { compareReports, reportFilename, reportHtml } from './analysis/report';
+import { CATEGORIES, type Category, type FindingGroup, type ScanReport } from './analysis/types';
+import { compareReports, groupFindings, reportFilename, reportHtml } from './analysis/report';
 import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client';
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
 
@@ -77,15 +77,27 @@ function saveFile(filename: string, content: string, mime: string) {
   window.setTimeout(()=>URL.revokeObjectURL(url), 3000);
 }
 
-function FindingCard({ finding, onShowLine }: { finding:Finding; onShowLine:(line:number)=>void; }) {
+function FindingCard({ group, onShowLine }: { group:FindingGroup; onShowLine:(line:number)=>void; }) {
   const [open,setOpen] = useState(false);
+  const { finding, occurrences } = group;
+  const first = occurrences[0];
   return <article className={'finding-card '+(open?'expanded':'')}>
     <button type="button" className="finding-toggle" onClick={()=>setOpen(v=>!v)} aria-expanded={open}>
       <span className={'severity '+finding.severity}>{finding.severity}</span>
       <span className="finding-name"><strong>{finding.title}</strong><small>{finding.category} · {finding.symbol} · {finding.certainty}</small></span>
-      <span className="line-tag">{finding.line ? `L${finding.line}`:'META'}</span><span className="chevron">{open?'−':'+'}</span>
+      <span className="line-tag">{occurrences.length===1 ? (first.line ? `L${first.line}`:'META') : `${occurrences.length} uses`}</span>
+      <span className="chevron">{open?'−':'+'}</span>
     </button>
-    {open && <div className="finding-details"><p>{finding.explanation}</p><div className="evidence"><code>{finding.excerpt || '(metadata)'}</code></div>{finding.arguments && <details><summary>Call arguments (source text, not resolved values)</summary><pre>{finding.arguments}</pre></details>}<p><strong>Review:</strong> {finding.recommendation}</p>{finding.line>0 && <button type="button" className="text-button" onClick={()=>onShowLine(finding.line)}>Show in source ↗</button>}</div>}
+    {open && <div className="finding-details">
+      <p>{finding.explanation}</p>
+      <div className="occurrence-heading">Evidence ({occurrences.length} {occurrences.length===1?'location':'locations'})</div>
+      <div className="occurrence-list">{occurrences.map(o=><div className="occurrence" key={o.id}>
+        <div className="occurrence-top"><span>{o.line ? `Line ${o.line}`:'Metadata'}</span>{o.line > 0 && <button type="button" className="text-button" onClick={()=>onShowLine(o.line)}>Show in source ↗</button>}</div>
+        <div className="evidence"><code>{o.excerpt || '(metadata)'}</code></div>
+        {o.arguments && <details><summary>Call arguments (source text, not resolved values)</summary><pre>{o.arguments}</pre></details>}
+      </div>)}</div>
+      <p><strong>Review:</strong> {finding.recommendation}</p>
+    </div>}
   </article>;
 }
 
@@ -109,17 +121,35 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   const [category,setCategory] = useState<Category|'All'>('All');
   const [severity,setSeverity] = useState<string>('all');
   const [search,setSearch] = useState('');
-  const filtered = report.findings.filter(f => (category==='All'||f.category===category) && (severity==='all'||f.severity===severity) && `${f.title} ${f.category} ${f.symbol} ${f.explanation}`.toLowerCase().includes(search.toLowerCase()));
-  const counts = CATEGORIES.map(c=>[c,report.findings.filter(f=>f.category===c).length] as const).filter(([,n])=>n>0);
+  const groups = useMemo(()=>groupFindings(report.findings),[report]);
+  const filtered = groups.filter(g => {
+    const f = g.finding;
+    return (category==='All'||f.category===category) && (severity==='all'||f.severity===severity) &&
+      `${f.title} ${f.category} ${f.symbol} ${f.explanation} ${g.occurrences.map(o=>o.excerpt).join(' ')}`.toLowerCase().includes(search.toLowerCase());
+  });
+  const counts = CATEGORIES.map(c=>[c,groups.filter(g=>g.finding.category===c).length] as const).filter(([,n])=>n>0);
+  const parser = report.diagnostics;
+  const parserIssues = (parser?.syntaxErrorNodes ?? 0) + (parser?.missingNodes ?? 0);
   function jumpTo(line:number) { setFocusLine(line); document.querySelector('.viewer')?.scrollIntoView({behavior:'smooth'}); }
   return <section className="results">
-    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?'C++ syntax parsed':'Limited lexical scan'}</span></div>
-    <div className="stats"><div><strong>{report.findings.length}</strong><span>Findings</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{report.findings.filter(f=>f.severity==='high'||f.severity==='medium').length}</strong><span>Review suggested</span></div><div><strong>{report.sourceLines.toLocaleString()}</strong><span>Lines of code</span></div></div>
+    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?(parserIssues ? 'C++ parsed with caveats':'C++ syntax parsed'):'Limited lexical scan'}</span></div>
+    <div className="stats"><div><strong>{groups.length}</strong><span>Capabilities</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{groups.filter(g=>g.finding.severity==='high'||g.finding.severity==='medium').length}</strong><span>Review suggested</span></div><div><strong>{report.findings.length}</strong><span>Occurrences</span></div></div>
     <div className="meta-grid"><div><span>Included processes</span><strong>{report.metadata.includes.join(', ') || 'Not declared'}</strong></div><div><span>Excluded processes</span><strong>{report.metadata.excludes.join(', ') || 'None declared'}</strong></div><div><span>SHA-256</span><code title={report.sha256}>{report.sha256.slice(0,18)}…</code></div><div><span>Analyzed</span><strong>{new Date(report.analyzedAt).toLocaleString()}</strong></div></div>
+    <div className="parser-summary" aria-label="C++ parser coverage">
+      <strong>Parser coverage</strong>
+      {report.coverage==='ast' && parser ? <>
+        <span>{parser.analyzedCalls.toLocaleString()} calls inspected</span>
+        <span>{parser.syntaxErrorNodes} error regions</span>
+        <span>{parser.missingNodes} missing tokens</span>
+        {parser.truncated && <span className="parser-warning">Inspection limit reached</span>}
+        {!!parser.sampledIssueLines.length && <span>Examples at lines {parser.sampledIssueLines.join(', ')}</span>}
+      </> : <span>Limited lexical scan. Parser diagnostics unavailable.</span>}
+      <p>These counts describe syntax analysis, not the percentage of safe or understood code. Macros and external dependencies are not resolved.</p>
+    </div>
     <div className="section-heading"><h3>Capabilities & findings</h3><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
     <div className="filters"><input aria-label="Search findings" placeholder="Search findings..." value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Filter category" value={category} onChange={e=>setCategory(e.target.value as Category|'All')}><option value="All">All categories</option>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select><select aria-label="Filter severity" value={severity} onChange={e=>setSeverity(e.target.value)}><option value="all">All severities</option>{SEVERITY_ORDER.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-    <div className="findings-list">{filtered.length?filtered.slice(0,200).map(f=><FindingCard key={f.id} finding={f} onShowLine={jumpTo}/>):<div className="empty-findings">No matching findings. This does not mean the mod is safe.</div>}</div>
-    {filtered.length>200 && <p className="hint">Showing the first 200 matching findings. Use filters or search to narrow results.</p>}
+    <div className="findings-list">{filtered.length?filtered.slice(0,200).map(g=><FindingCard key={g.id} group={g} onShowLine={jumpTo}/>):<div className="empty-findings">No matching findings. This does not mean the mod is safe.</div>}</div>
+    {filtered.length>200 && <p className="hint">Showing the first 200 matching capabilities. Use filters or search to narrow results.</p>}
     <div className="limits"><div><Icon name="alert" size={19}/><strong>Interpretation limits</strong></div><ul>{report.limitations.map((l,i)=><li key={i}>{l}</li>)}</ul><p>Severity indicates the importance of reviewing a capability, not a probability that the mod is malware.</p></div>
     <SourceViewer source={source} focusLine={focusLine}/>
   </section>;

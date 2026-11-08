@@ -10,10 +10,12 @@ Windhawk Inspector is a browser-based, open-source C++ source analyzer for [Wind
 
 - Input via Windhawk catalog URL, public GitHub source URL, local `.wh.cpp`/`.cpp`/`.h`/`.hpp`/`.txt` file, or pasted C++ code.
 - Classifies source-level findings across network, downloads, file system, Registry, process execution, cross-process memory, hooks, persistence, privileges, dynamic loading, input/shortcuts, sensitive data and Windhawk metadata.
-- Shows exact source lines, API names, arguments (raw source text), explanations, review suggestions, process includes/excludes, SHA-256 and analysis coverage.
+- Groups equivalent API findings in the interface while retaining every source occurrence, argument and line number. JSON reports keep the original per-occurrence findings for downstream tools.
+- Shows exact source lines, API names, arguments (raw source text), explanations, review suggestions, process includes/excludes and SHA-256.
 - Compares two versions and identifies added/removed source-level findings.
 - Exports JSON and standalone HTML reports.
 - Runs analysis in Web Workers. A Tree-sitter C++ WebAssembly parser is used when available, with a clearly labeled limited lexical fallback.
+- Reports parser coverage diagnostics: call sites inspected, syntax error nodes, missing tokens, sample issue lines and any inspection limits reached.
 - Does **not** upload files, paste content or analysis results to a backend. Public URL analysis fetches source directly from GitHub.
 
 ## Design
@@ -58,10 +60,14 @@ The GitHub Actions workflow builds the app with a `/windhawk-inspector/` base pa
 - **Detected**: a matching API or declared capability is visible in the provided source.
 - **Potential**: a matching source pattern exists but cannot establish intent or actual runtime behavior.
 - **Not detected**: no matching rule was found in the supplied code; **never** an assurance of absence.
-- **C++ syntax parsed**: the C++ syntax tree was available (but not full C++ compilation, linking, dataflow or runtime analysis).
+- **C++ syntax parsed**: a syntax tree was available. Reported error regions or missing tokens may arise from macros or incomplete translation units. Counts do **not** measure percentage of source coverage, and an AST does not imply full C++ compilation, linking or dataflow analysis.
 - **Limited lexical scan**: WebAssembly parsing was unavailable; detection has reduced reliability.
 
-Severity describes review priority, not the probability of maliciousness. Normal Windhawk hooks are marked informational. Common C++ algorithms, shortcut keys and System32 DLL loading are handled contextually to reduce false positives. Comments and ordinary string literals are excluded from lexical call matching, but macros and indirect calls can still evade detection.
+Severity describes review priority, not the probability of maliciousness. Normal Windhawk hooks are marked informational. Common C++ algorithms, shortcut keys and System32 DLL loading are handled contextually to reduce false positives. Explicit read/write access flags are differentiated for common file-open APIs, and only the `runas` verb is treated as an explicit ShellExecute elevation request. Comments and ordinary string literals are excluded from lexical call matching, but macros and indirect calls can still evade detection.
+
+## Regression coverage
+
+Automated tests cover grouped findings with evidence retention, the Taskbar Zones false positives, and representative network, download, file, Registry, credential, process-execution and elevation API patterns. Tree-sitter tests verify both ordinary C++ parsing and syntax recovery diagnostics. These tests verify specific patterns, not complete behavior or malware detection across arbitrary C++ projects.
 
 ## Important limitations
 
@@ -74,7 +80,7 @@ Severity describes review priority, not the probability of maliciousness. Normal
 
 ## Project layout
 
-- `src/analysis/`: metadata, C++ call rule definitions, source URL validation, reports and diffing.
+- `src/analysis/`: metadata, C++ syntax diagnostics, call rules, source URL validation, grouped reports and diffing.
 - `src/workers/`: C++ parsing and background scanning.
 - `src/App.tsx`: accessible responsive UI, input controls and results.
 - `tests/`: unit tests for detection, source URLs and HTML escaping.

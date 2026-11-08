@@ -32,6 +32,20 @@ export interface ModMetadata {
   architectures: string[];
   compilerOptions: string[];
 }
+export interface ParserDiagnostics {
+  visitedNodes: number;
+  callExpressions: number;
+  analyzedCalls: number;
+  syntaxErrorNodes: number;
+  missingNodes: number;
+  sampledIssueLines: number[];
+  truncated: boolean;
+}
+export interface FindingGroup {
+  id: string;
+  finding: Finding;
+  occurrences: Finding[];
+}
 export interface ScanReport {
   schemaVersion: 1;
   engineVersion: string;
@@ -40,9 +54,10 @@ export interface ScanReport {
   sha256: string;
   sourceLines: number;
   coverage: Coverage;
+  diagnostics?: ParserDiagnostics;
   limitations: string[];
   metadata: ModMetadata;
   findings: Finding[];
 }
 export interface CallSite { name: string; line: number; column: number; args: string; excerpt: string; }
-export interface ParseResult { calls: CallSite[]; coverage: Coverage; limitations: string[]; }
+export interface ParseResult { calls: CallSite[]; coverage: Coverage; limitations: string[]; diagnostics?: ParserDiagnostics; }

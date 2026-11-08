@@ -2,7 +2,8 @@
 import { Parser, Language } from 'web-tree-sitter';
 import { buildReport } from '../analysis/report';
 import { findLexicalCalls } from '../analysis/lexical';
-import type { CallSite, ParseResult } from '../analysis/types';
+import type { ParseResult } from '../analysis/types';
+import { inspectSyntaxTree } from '../analysis/parser';
 import { MAX_SOURCE_BYTES } from '../analysis/url';
 
 let parserPromise: Promise<Parser> | undefined;
@@ -23,40 +24,11 @@ async function parseSource(source: string): Promise<ParseResult> {
     const parser = await getParser();
     const tree = parser.parse(source);
     if (!tree) throw new Error('C++ parser returned no syntax tree');
-    const cursor = tree.walk();
-    const lines = source.split(/\r?\n/);
-    const calls: CallSite[] = [];
-    let traversed = 0;
-    while (true) {
-      traversed++;
-      if (traversed > 500_000) throw new Error('Syntax tree too large for this scan');
-      if (cursor.nodeType === 'call_expression' && calls.length < 15_000) {
-        const node = cursor.currentNode;
-        const fn = node.childForFieldName('function');
-        const args = node.childForFieldName('arguments');
-        if (fn && args) {
-          calls.push({
-            name: source.slice(fn.startIndex, fn.endIndex),
-            line: node.startPosition.row + 1,
-            column: node.startPosition.column + 1,
-            args: source.slice(args.startIndex + 1, Math.max(args.startIndex + 1, args.endIndex - 1)),
-            excerpt: lines[node.startPosition.row] ?? '',
-          });
-        }
-      }
-      if (cursor.gotoFirstChild()) continue;
-      let next = cursor.gotoNextSibling();
-      while (!next) {
-        if (!cursor.gotoParent()) break;
-        next = cursor.gotoNextSibling();
-      }
-      if (!next) break;
+    try {
+      return inspectSyntaxTree(source, tree);
+    } finally {
+      tree.delete();
     }
-    const limitations: string[] = [];
-    if (tree.rootNode.hasError) limitations.push('The parser flagged some C++ constructs as incomplete or ambiguous. Macros and project-specific syntax can cause this; the source is not necessarily invalid. Some calls may be missed.');
-    if (calls.length === 15_000) limitations.push('Call site limit reached; findings may be incomplete.');
-    tree.delete();
-    return { calls, coverage: 'ast', limitations };
   } catch (error) {
     return {
       calls: findLexicalCalls(source), coverage: 'lexical',
