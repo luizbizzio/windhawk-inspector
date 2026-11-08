@@ -118,32 +118,33 @@ function saveFile(filename: string, content: string, mime: string) {
   window.setTimeout(()=>URL.revokeObjectURL(url), 3000);
 }
 
-function InsightCard({ insight, onShowLine }: { insight:PlainInsight; onShowLine:(line:number)=>void }) {
+function InsightRow({ insight, onShowLine }: { insight:PlainInsight; onShowLine:(line:number)=>void }) {
   const [expanded, setExpanded] = useState(false);
   const [all, setAll] = useState(false);
-  const evidence = useMemo(() => groupEvidence(insight.findings), [insight]);
-  const visible = all ? evidence : evidence.slice(0, 6);
-  return <article className="insight-card">
-    <div className="insight-top">
-      <span className={'insight-level '+insight.priority}>{insight.priority==='review' ? 'Worth checking' : 'For your information'}</span>
-      <span className="insight-count">{insight.findings.length} code {insight.findings.length===1?'match':'matches'}</span>
+  const detailsId = useId();
+  const evidence = useMemo(() => groupEvidence(insight.findings), [insight.findings]);
+  const visible = all ? evidence : evidence.slice(0, 5);
+  return <article className="insight-row">
+    <div className="insight-row-main">
+      <div className="insight-row-copy">
+        <h4>{insight.title}</h4>
+        <p>{insight.meaning}</p>
+        {insight.priority==='review' && <p className="insight-advice"><strong>Check:</strong> {insight.next}</p>}
+      </div>
+      <button type="button" className="insight-details" aria-expanded={expanded} aria-controls={detailsId} onClick={()=>setExpanded(v=>!v)}>
+        {expanded?'Hide details':'Details'} <span aria-hidden="true">{expanded?'−':'+'}</span>
+      </button>
     </div>
-    <h4>{insight.title}</h4>
-    <p className="insight-meaning">{insight.meaning}</p>
-    <p><strong>Why it matters</strong>{insight.why}</p>
-    <p><strong>What to check</strong>{insight.next}</p>
-    <button type="button" className="secondary compact insight-expand" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)}>
-      {expanded ? 'Hide code examples' : `Show code examples (${evidence.length})`}
-    </button>
-    {expanded && <div className="insight-evidence">
-      <p className="hint">These are source-code matches, not proof that the action happened. Matching calls are grouped to avoid repetition.</p>
+    {expanded && <div id={detailsId} className="insight-evidence">
+      <p className="insight-context">{insight.why}</p>
+      <div className="insight-evidence-heading">Found in {insight.findings.length} {insight.findings.length===1?'place':'places'} in the code</div>
       {visible.map((row,i)=><div className="insight-evidence-row" key={i}>
-        <div><span>{row.label}</span><small>{row.locations.length} {row.locations.length===1?'location':'locations'}</small></div>
-        <div className="line-links">{row.locations.slice(0,all?8:3).filter(f=>f.line>0).map(f=><button type="button" key={f.id} className="text-button" title={`Show line ${f.line} in source`} onClick={()=>onShowLine(f.line)}>L{f.line}</button>)}
-        {row.locations.length>(all?8:3) && <small>+{row.locations.length-(all?8:3)} lines in JSON</small>}</div>
+        <div><span>{row.label}</span><small>{row.locations.length} {row.locations.length===1?'reference':'references'}</small></div>
+        <div className="line-links">{row.locations.slice(0,all?8:3).filter(f=>f.line>0).map(f=><button type="button" key={f.id} className="text-button" title={`View line ${f.line}`} onClick={()=>onShowLine(f.line)}>L{f.line}</button>)}
+        {row.locations.length>(all?8:3) && <small>+{row.locations.length-(all?8:3)} in JSON</small>}</div>
       </div>)}
-      {evidence.length>6 && <button type="button" className="text-button insight-show-all" onClick={()=>setAll(v=>!v)}>{all?'Show fewer':`Show all ${evidence.length} examples`}</button>}
-      <p className="hint">For full arguments and every code line, open Technical details or export the JSON report.</p>
+      {evidence.length>5 && <button type="button" className="text-button insight-show-all" onClick={()=>setAll(v=>!v)}>{all?'Show less':`Show all ${evidence.length} items`}</button>}
+      <p className="insight-footnote">These are code references, not a record of actions taken. Download the JSON for every occurrence.</p>
     </div>}
   </article>;
 }
@@ -194,6 +195,8 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   const [search,setSearch] = useState('');
   const groups = useMemo(()=>groupFindings(report.findings),[report]);
   const insights = useMemo(()=>buildInsights(report),[report]);
+  const reviewItems = insights.filter(item=>item.priority==='review');
+  const otherItems = insights.filter(item=>item.priority!=='review');
   const coverage = coverageSummary(report);
   const [advanced,setAdvanced] = useState(false);
   const filtered = groups.filter(g => {
@@ -208,10 +211,20 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   return <section className="results">
     <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?(parserIssues ? 'Parsing gaps found':'C++ parsed'):report.coverage==='hybrid'?'Mixed scan':'Basic text scan'}</span></div>
     <div className={'coverage-notice '+coverage.kind} role="status"><div><Icon name={coverage.kind==='caution'?'alert':'check'} size={19}/><strong>{coverage.title}</strong></div><p>{coverage.explanation}</p></div>
-    <section className="plain-summary" aria-label="Plain-language findings">
-      <div className="plain-summary-heading"><div><p className="eyebrow">IN SIMPLE WORDS</p><h3>What this mod may do</h3><p>{insights.length ? `${report.findings.length} code matches, shown as ${insights.length} understandable topics. A match is not proof of harmful behavior.` : 'No matching actions were found in the parts of the source checked. This does not mean the mod is safe.'}</p></div></div>
-      {insights.some(i=>i.priority==='review') && <p className="review-note">Some actions are worth checking more closely. This is not a malware verdict or a risk score.</p>}
-      <div className="insight-grid">{insights.map(item=><InsightCard key={item.id} insight={item} onShowLine={jumpTo}/>)}</div>
+    <section className="plain-summary" aria-label="Scan overview">
+      <div className="plain-summary-heading">
+        <h3>What we found</h3>
+        <p>The code contains {insights.length} types of activity. These are clues from the source, not proof of what the mod did.</p>
+      </div>
+      {reviewItems.length>0 && <section className="insight-section" aria-label="Items to review">
+        <div className="insight-section-title"><h4>Worth a closer look</h4><span>{reviewItems.length}</span></div>
+        <div className="insight-list">{reviewItems.map(item=><InsightRow key={item.id} insight={item} onShowLine={jumpTo}/>)}</div>
+      </section>}
+      {otherItems.length>0 && <section className="insight-section" aria-label="Other activity">
+        <div className="insight-section-title"><h4>Other things found</h4><span>{otherItems.length}</span></div>
+        <div className="insight-list">{otherItems.map(item=><InsightRow key={item.id} insight={item} onShowLine={jumpTo}/>)}</div>
+      </section>}
+      {!insights.length && <p className="plain-empty">No matching functions were found. That does not mean the mod is safe.</p>}
     </section>
     <div className="plain-actions"><button type="button" className="secondary" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}>{advanced?'Hide technical details':'Show technical details'}</button><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
     {advanced && <div className="advanced-report" aria-label="Technical details">
@@ -294,7 +307,7 @@ export default function App() {
             <span className="brand-mark page-logo" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="36" height="36" /></span>
             <h1>Windhawk Inspector</h1>
           </div>
-          <p>Understand what a Windhawk mod can do. Check C++ source for sensitive capabilities, with evidence from the code.</p>
+          <p>See what a Windhawk mod can access. Important findings come first, with code details one click away.</p>
         </div>
         <div className="page-heading-meta">
           <nav className="page-links" aria-label="Project links">
@@ -323,7 +336,7 @@ export default function App() {
       </section>
 
       <div id="results">{result && <><ReportView report={result.report} source={result.source} focusLine={focusLine} setFocusLine={setFocusLine}/>{previous && <DiffView previous={previous} current={result.report}/>}</>}</div>
-      <p className="disclaimer"><Icon name="alert" size={16}/> This tool shows possible source-code capabilities, not what happens at runtime. No findings does not mean a mod is safe.</p>
+      <p className="disclaimer"><Icon name="alert" size={16}/> This checks source code, not what actually runs on your computer. No findings does not mean a mod is safe.</p>
     </main>
     <footer className="footer"><div className="wrap footer-inner">
       <div className="footer-main">

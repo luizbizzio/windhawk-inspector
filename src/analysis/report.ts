@@ -4,7 +4,7 @@ import { parseMetadata } from './metadata';
 import { findLexicalCalls } from './lexical';
 import { buildInsights, coverageSummary, groupEvidence } from './insights';
 
-export const ENGINE_VERSION = '0.3.0';
+export const ENGINE_VERSION = '0.3.1';
 const BASE_LIMITATIONS = [
   'Static source analysis cannot prove what executes at runtime or that a mod is safe.',
   'Macro expansion, external headers/libraries, generated code, indirect calls and dynamic behavior may be missed.',
@@ -95,9 +95,14 @@ const esc = (input: string) => input.replace(/[&<>"']/g, c => ({'&':'&amp;','<':
 export function reportHtml(report: ScanReport): string {
   const insights = buildInsights(report);
   const coverage = coverageSummary(report);
-  const summary = insights.map(item => `<article><h3>${esc(item.title)} <small>${item.findings.length} code matches</small></h3>
-    <p>${esc(item.meaning)}</p><p><b>Why it matters:</b> ${esc(item.why)}</p>
-    <p><b>What to check:</b> ${esc(item.next)}</p></article>`).join('');
+  const plainList = (priority: 'review' | 'note') => insights.filter(item=>item.priority===priority).map(item => {
+    const refs = groupEvidence(item.findings).map(e=>`<li>${esc(e.label)} (${e.locations.length} reference${e.locations.length===1?'':'s'})</li>`).join('');
+    return `<article><h3>${esc(item.title)}</h3><p>${esc(item.meaning)}</p>
+      ${priority==='review'?`<p class="review"><b>Check:</b> ${esc(item.next)}</p>`:''}
+      <details><summary>Details (${item.findings.length} references)</summary><p>${esc(item.why)}</p><ul>${refs}</ul></details></article>`;
+  }).join('');
+  const review = plainList('review');
+  const routine = plainList('note');
   const groups = groupFindings(report.findings);
   const rows = groups.map(({ finding: f, occurrences }) => {
     const evidence = occurrences.map(o => `<div><b>${o.line ? `Line ${o.line}` : 'Metadata'}</b>: <code>${esc(o.excerpt)}</code>
@@ -109,23 +114,21 @@ export function reportHtml(report: ScanReport): string {
   const parser = diag ? `<p>C++ calls inspected: ${diag.analyzedCalls}; parser errors: ${diag.syntaxErrorNodes}; missing tokens: ${diag.missingNodes}; inspection limit reached: ${diag.truncated ? 'yes' : 'no'}.</p>
     ${report.coverage==='hybrid' ? `<p>Extra text-scan matches: ${diag.lexicalSupplementCalls ?? 0}. These are less precise than the C++ parser.</p>` : ''}` : '<p>Detailed C++ parser information unavailable.</p>';
   const limits = report.limitations.map(l=>`<li>${esc(l)}</li>`).join('');
-  const insightRows = insights.map(item => {
-    const rows = groupEvidence(item.findings).map(e => `<li>${esc(e.label)} (${e.locations.length} source ${e.locations.length===1?'location':'locations'})</li>`).join('');
-    return `<details><summary>${esc(item.title)}: ${item.findings.length} matches</summary><ul>${rows}</ul></details>`;
-  }).join('');
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Windhawk Inspector Report</title><style>
   body{font:14px/1.6 system-ui,Arial,sans-serif;background:#1c1c1c;color:#eee;max-width:1050px;margin:35px auto;padding:0 18px}
   h1,h2,h3{font-weight:600}h1{color:#ffce2e}h2{margin-top:27px}p,small{color:#bbb}article{background:#232323;border:1px solid #424242;padding:13px 18px;margin:12px 0;border-radius:4px}
+  .review{color:#e2ca9d}h2{font-size:18px}h3{font-size:14px;margin:0 0 5px}article p{margin:4px 0 8px}details{font-size:12px}article details p{margin-top:8px}
   .notice{border:1px solid ${coverage.kind==='caution'?'#a17b3e':'#555'};padding:12px 15px;background:#262626}
   table{width:100%;border-collapse:collapse}td,th{border:1px solid #444;padding:9px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
   details{margin:9px 0}summary{cursor:pointer;color:#e4d5a5}code{white-space:pre-wrap;overflow-wrap:anywhere}li{margin:7px 0}small{font-size:12px}
   </style></head><body><h1>Windhawk Inspector</h1><p>This is not a safety certificate. The tool only checks source code.</p>
   <h2>${esc(report.metadata.name ?? report.filename)}</h2><p>Engine ${esc(report.engineVersion)} · ${esc(report.analyzedAt)} · SHA-256 ${esc(report.sha256)}</p>
   <div class="notice"><strong>${esc(coverage.title)}</strong><p>${esc(coverage.explanation)}</p></div>
-  <h2>What this mod may do</h2><p>${report.findings.length} source-code matches in ${insights.length} topics. A match does not prove an action happened.</p>
-  ${summary || '<p>No matching actions were found. This does not prove that the mod is safe.</p>'}
-  <details><summary>Technical functions by topic</summary>${insightRows}</details>
+  <h2>What we found</h2><p>The code contains ${insights.length} types of activity. These are clues from the source, not proof of what the mod did.</p>
+  ${review?`<h2>Worth a closer look</h2>${review}`:''}
+  ${routine?`<h2>Other things found</h2>${routine}`:''}
+  ${!insights.length?'<p>No matching functions were found. This does not mean the mod is safe.</p>':''}
   <h2>Technical evidence</h2><details><summary>Show all ${report.findings.length} findings (${groups.length} technical groups)</summary>
     <p>Included processes: ${esc(report.metadata.includes.join(', ') || 'Not declared')}</p>
     ${parser}<table><thead><tr><th>Category</th><th>Level</th><th>Finding</th><th>API</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table></details>

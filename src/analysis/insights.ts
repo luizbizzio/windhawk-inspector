@@ -17,124 +17,124 @@ interface Description { title: string; meaning: string; why: string; next: strin
 // Fixed, reviewed language is intentionally used instead of speculative AI summaries.
 const DESCRIPTIONS: Record<string, Description> = {
   'windows-components': {
-    title: 'Uses Windows features and components',
-    meaning: 'The mod looks up Windows functions or opens built-in system components.',
-    why: 'Mods often do this to work with the taskbar, images and other Windows features. It does not mean the mod downloaded another program.',
-    next: 'Check whether these Windows features fit what the mod says it does.',
+    title: 'Uses Windows components',
+    meaning: 'Looks up Windows functions and opens system components.',
+    why: 'A dock or taskbar mod often needs these functions. The specific names are listed below.',
+    next: 'Make sure the functions fit the mod’s features.',
   },
   'extra-libraries': {
-    title: 'May load extra software libraries',
-    meaning: 'The source contains a call that may open a DLL library.',
-    why: 'The DLL file and its location matter. A Windows library and an unknown file from the internet are not the same.',
-    next: 'Check which DLL is loaded and where it comes from.',
+    title: 'Loads software libraries',
+    meaning: 'Can load a DLL, a file that adds features to a program.',
+    why: 'Where the library comes from matters. A built-in Windows DLL is different from an unknown download.',
+    next: 'Check the library name and where it is loaded from.',
   },
   'process-details': {
-    title: 'Checks other running programs',
-    meaning: 'The mod requests basic information or wait access for another process.',
-    why: 'This can help show running apps or their icons. The shown access flags do not request permission to change another program’s memory.',
-    next: 'Check whether the mod needs to identify or monitor other running apps.',
+    title: 'Checks running apps',
+    meaning: 'Requests basic details about other programs, such as their process IDs.',
+    why: 'This can help show running apps and their icons. The detected access flags do not request memory changes.',
+    next: 'Check which programs are being queried.',
   },
   'process-memory': {
-    title: 'May read or change another program’s memory',
-    meaning: 'The code includes operations or permissions that can access another program’s memory.',
-    why: 'This is more sensitive than simply checking which apps are running. It may be needed for customization, but deserves review.',
-    next: 'Check the target program and what data the code reads or changes.',
+    title: 'Can access another app’s memory',
+    meaning: 'Requests access to memory belonging to another running program.',
+    why: 'Some customization tools need this, but it is more sensitive than checking which apps are open.',
+    next: 'Which program is targeted, and what data is read or changed?',
   },
   'permission-checks': {
     title: 'Checks Windows permissions',
-    meaning: 'The mod reads security permission information.',
-    why: 'Reading permission information is not the same as requesting administrator access.',
-    next: 'Check why the mod needs to know a process’s permissions.',
+    meaning: 'Reads information about the permissions a program has.',
+    why: 'Checking permissions is not the same as requesting administrator access.',
+    next: 'Check why those permissions are being read.',
   },
   'permission-changes': {
-    title: 'May adjust Windows permissions',
-    meaning: 'The code requests access or uses functions that can change security privileges.',
-    why: 'Changes to permissions deserve attention. Finding the function does not prove that a permission was changed or that the call succeeded.',
-    next: 'Check which permission could change and why the mod needs it.',
+    title: 'Can change Windows permissions',
+    meaning: 'Uses functions that can enable or adjust security privileges.',
+    why: 'The source shows a capability, not whether permission changes succeeded.',
+    next: 'Which privilege is requested, and is it needed for the mod?',
   },
   'shortcut-checks': {
-    title: 'Checks keyboard shortcuts or mouse buttons',
-    meaning: 'The code checks whether a particular key or mouse button is pressed.',
-    why: 'This is common for shortcuts and drag gestures. These calls alone are not evidence of recording everything you type.',
-    next: 'Check whether the keys match the controls described by the mod.',
+    title: 'Checks keys and mouse buttons',
+    meaning: 'Reads the state of specific keys or mouse buttons.',
+    why: 'This is common for shortcuts and dragging. These checks alone do not show that typing is being recorded.',
+    next: 'Check which keys the mod uses.',
   },
   'input-hooks': {
-    title: 'May monitor keyboard or window events',
-    meaning: 'The source includes functions that can receive input or Windows events.',
-    why: 'Event hooks can be normal, but their callbacks determine what information is collected.',
-    next: 'Check which events are handled and whether input is saved or sent anywhere.',
+    title: 'Can listen for input events',
+    meaning: 'Uses callbacks for keyboard, mouse or window events.',
+    why: 'The event handler decides what data is actually used or saved.',
+    next: 'What events are captured, and is any information stored or sent?',
   },
   'files-read': {
-    title: 'May read files or stored data',
-    meaning: 'The code reads from a file or another open data handle.',
-    why: 'Reading a file may be needed for settings, icons or images. A read handle is not proof of access to private files.',
-    next: 'Check which file path or handle is used and why.',
+    title: 'Reads files or data',
+    meaning: 'Reads from an open file, pipe or other data source.',
+    why: 'Mods may do this for icons, images or settings. The code reference does not identify private files by itself.',
+    next: 'Which files or handles are read?',
   },
   'files-write': {
-    title: 'May create or change files',
-    meaning: 'The code includes functions that can write data to a file or handle.',
-    why: 'Saving settings and temporary images is common. The destination matters, especially for system or personal files.',
-    next: 'Check which files are created or changed and whether that is expected.',
+    title: 'Can write files or data',
+    meaning: 'Can save or change data through an open file or handle.',
+    why: 'Saving settings can be normal. The destination determines what might be affected.',
+    next: 'Which file or location receives the data?',
   },
   'files-open': {
-    title: 'May open local files',
-    meaning: 'The mod contains a file-open operation, but its access mode is not clear from this match.',
-    why: 'The file may be opened for reading, writing or both. The name and mode need checking.',
-    next: 'Check the file name and access mode in the source.',
+    title: 'Opens local files',
+    meaning: 'Opens files, but the detected call does not show whether they are read or changed.',
+    why: 'The access mode may be stored in a variable and decided while the mod runs.',
+    next: 'Check the file path and whether it is opened for reading or writing.',
   },
   'files-delete': {
-    title: 'May delete files',
-    meaning: 'The source contains a file deletion operation.',
-    why: 'Deleting temporary files may be normal, but deleting user files would be important.',
-    next: 'Check which files could be deleted and why.',
+    title: 'Can delete files',
+    meaning: 'Contains a function that can remove files.',
+    why: 'Cleaning temporary files may be expected. Deleting personal files would be different.',
+    next: 'Which files could be deleted?',
   },
   'network': {
-    title: 'May connect to the internet',
-    meaning: 'The source includes networking functions that can communicate with other computers.',
-    why: 'An update check or online service could explain this. A network API alone does not prove data was sent.',
-    next: 'Look for the website or server address and the type of data exchanged.',
+    title: 'Can connect to the internet',
+    meaning: 'Uses networking functions to communicate with other computers.',
+    why: 'This might be an update check. A network function does not prove anything was sent.',
+    next: 'Which website or server is contacted, and what is sent?',
   },
   'downloads': {
-    title: 'May download content',
-    meaning: 'The mod contains functions used to receive data or files from the internet.',
-    why: 'Downloading icons or updates can be useful. Downloading and running executable files would need more care.',
-    next: 'Check the download address, destination and whether downloaded files are executed.',
+    title: 'Can download files',
+    meaning: 'Uses functions that can fetch content from the internet.',
+    why: 'Downloading an icon differs from downloading a program that can run.',
+    next: 'What is downloaded, from where, and does it run afterward?',
   },
   'registry': {
-    title: 'May read or change Windows settings',
-    meaning: 'The code accesses the Windows Registry, where many apps store settings.',
-    why: 'Reading an app setting is different from changing the system configuration.',
-    next: 'Check which Registry keys are used and whether they are only read or also changed.',
+    title: 'Accesses Windows settings',
+    meaning: 'Uses the Registry, where Windows and apps store configuration.',
+    why: 'Reading a setting is different from changing it.',
+    next: 'Which Registry entries are read or changed?',
   },
   'run-programs': {
-    title: 'May start other programs',
-    meaning: 'The code includes calls used to open or run another process.',
-    why: 'Some mods open Settings or helper tools. The name and source of the program matter.',
-    next: 'Check which program starts and whether the user expects it.',
+    title: 'Can start other programs',
+    meaning: 'Uses a function that can launch another program.',
+    why: 'Opening Windows Settings may be expected. Starting an unknown file needs closer review.',
+    next: 'Which program is launched and where does it come from?',
   },
   'hooks': {
-    title: 'Changes how Windows functions work',
-    meaning: 'The mod contains Windows or Windhawk function hooks.',
-    why: 'Function hooks are a normal part of Windhawk mods. The affected function determines what changes.',
-    next: 'Check that the functions being changed match the mod description.',
+    title: 'Changes how Windows works',
+    meaning: 'Hooks Windows or app functions to change their behavior.',
+    why: 'This is how many Windhawk mods work. The target function matters.',
+    next: 'Which functions are changed?',
   },
   'sensitive-data': {
-    title: 'May access protected information',
-    meaning: 'The code includes Windows functions that can handle credentials or protected data.',
-    why: 'This could expose sensitive information depending on the target and how the data is handled.',
-    next: 'Check which data is accessed and whether it is stored or transmitted.',
+    title: 'Can handle protected data',
+    meaning: 'Uses functions that can access saved credentials or protected information.',
+    why: 'Whether it exposes private information depends on which data is used and where it goes.',
+    next: 'What data is accessed, stored or sent?',
   },
   'startup': {
-    title: 'May change automatic startup',
-    meaning: 'The source includes ways to register a service or a scheduled task.',
-    why: 'This can make a program start automatically. That should match the mod’s purpose.',
-    next: 'Check the program, startup trigger and account that would be used.',
+    title: 'Can add startup tasks',
+    meaning: 'Contains functions that can register a service or scheduled task.',
+    why: 'A task could start a program automatically.',
+    next: 'What starts automatically, and when?',
   },
   'scope': {
-    title: 'May run inside many programs',
-    meaning: 'The Windhawk metadata allows this mod to run in a broad set of processes.',
-    why: 'A broad scope can have more impact than changing one selected app.',
-    next: 'Check the list of programs the mod targets.',
+    title: 'Can run in many programs',
+    meaning: 'The mod lists a broad set of programs where it can run.',
+    why: 'A wider scope affects more programs than a single-app mod.',
+    next: 'Which programs are included?',
   },
 };
 
@@ -175,6 +175,7 @@ export function insightId(f: Finding): string {
 }
 
 const order: Severity[] = ['info', 'low', 'medium', 'high'];
+const INFORMATION_ONLY = new Set(['windows-components', 'process-details', 'permission-checks', 'shortcut-checks', 'files-read', 'files-open', 'hooks']);
 export function buildInsights(report: Pick<ScanReport, 'findings'>): PlainInsight[] {
   const groups = new Map<string, PlainInsight>();
   for (const finding of report.findings) {
@@ -182,7 +183,7 @@ export function buildInsights(report: Pick<ScanReport, 'findings'>): PlainInsigh
     const copy = DESCRIPTIONS[id] ?? {
       title: finding.title,
       meaning: finding.explanation,
-      why: 'The source contains this function, but that does not prove what happens when the mod runs.',
+      why: 'This is a function call in the source. It does not show what happened while the mod was running.',
       next: finding.recommendation,
     };
     let item = groups.get(id);
@@ -192,9 +193,10 @@ export function buildInsights(report: Pick<ScanReport, 'findings'>): PlainInsigh
     }
     item.findings.push(finding);
     if (order.indexOf(finding.severity) > order.indexOf(item.severity)) item.severity = finding.severity;
-    if (finding.severity === 'medium' || finding.severity === 'high') item.priority = 'review';
+    if (!INFORMATION_ONLY.has(id) && (finding.severity === 'medium' || finding.severity === 'high')) item.priority = 'review';
   }
   return [...groups.values()].sort((a,b) =>
+    (a.priority==='review'?0:1) - (b.priority==='review'?0:1) ||
     order.indexOf(b.severity) - order.indexOf(a.severity) || a.title.localeCompare(b.title));
 }
 
@@ -253,21 +255,21 @@ export function coverageSummary(report: Pick<ScanReport,'coverage'|'diagnostics'
   kind: 'caution' | 'normal'; title: string; explanation: string;
 } {
   if (report.coverage === 'hybrid') return {
-    kind:'caution', title:'Some code could not be fully checked',
-    explanation:'The detailed C++ scan reached a limit. A basic text scan also searched the full file, but it can miss behavior or report extra matches.',
+    kind:'caution', title:'Part of the scan was limited',
+    explanation:'The detailed scan stopped early. A text search covered the rest, but it can miss calls or find false matches.',
   };
   if (report.coverage === 'lexical') return {
-    kind:'caution', title:'Basic check only',
-    explanation:'The tool looked for known function names, not the full meaning of the C++ code. Some actions may be missed.',
+    kind:'caution', title:'Text scan only',
+    explanation:'Only known function names were searched. Some actions may be missed.',
   };
   if (report.diagnostics?.truncated) return {
-    kind:'caution', title:'Part of the code was not checked',
+    kind:'caution', title:'Scan stopped early',
     explanation:'The analyzer reached its inspection limit before finishing. The findings below are incomplete.',
   };
   if ((report.diagnostics?.syntaxErrorNodes ?? 0) + (report.diagnostics?.missingNodes ?? 0) > 0) return {
-    kind:'caution', title:'Checked with some parsing gaps',
+    kind:'caution', title:'Some code was hard to read',
     explanation:'Parts of the C++ code were hard to interpret. Some actions may be missed.',
   };
-  return {kind:'normal', title:'Source check finished',
-    explanation:'The source scan finished without hitting its limits. This still cannot prove that the mod is safe.'};
+  return {kind:'normal', title:'Scan finished',
+    explanation:'No scan limits were reached. This still cannot show everything the mod does when it runs.'};
 }

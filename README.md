@@ -6,19 +6,13 @@ Windhawk Inspector is a browser-based, open-source C++ source analyzer for [Wind
 
 > This tool is independent from Windhawk and is **not** a malware detector or a safety certificate. An empty report does not mean a mod is safe.
 
-## Results in simple English
+## Reading a report
 
-The report starts with **What this mod may do**. Each topic explains:
+The first screen shows two short lists: **Worth a closer look** and **Other things found**. Each row tells you what the mod's source can access, without requiring knowledge of Windows APIs. Sensitive findings also show a practical question to check.
 
-- What the code contains.
-- Why it might matter to the person installing the mod.
-- What they can check before deciding to trust it.
+Choose **Details** for more context and the lines that triggered each result. The full technical report and all occurrences remain in the JSON and HTML downloads. The same source can appear on several lines without creating repeated warning paragraphs.
 
-Repeated calls are grouped into topics, with a short list of code examples. Click **Show technical details** to see the raw API names and line references. Nothing is deleted from the JSON export. The HTML export also presents the plain-English explanation first.
-
-Calls that only check running programs or Windows permissions are distinguished from calls that can change memory or permissions. A source match is not proof that an action happened or that a mod is safe or harmful.
-
-If the C++ scan reaches its node or call limit, a basic text check supplements the source. The interface marks this **Mixed scan** and warns that results may still be incomplete. Files larger than 8 MB use the basic text check from the start.
+A source match shows that code exists, not that it ran. If a scan is incomplete, the page says so plainly. An empty report is not a security guarantee.
 
 ## What it does
 

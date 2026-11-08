@@ -17,6 +17,7 @@ CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, &factor
     expect(insights).toHaveLength(1);
     expect(insights[0].id).toBe('windows-components');
     expect(insights[0].findings).toHaveLength(4);
+    expect(insights[0].priority).toBe('note');
     const examples = groupEvidence(insights[0].findings);
     expect(examples.find(r => r.label.includes('sqlite3_open_v2'))?.locations).toHaveLength(2);
     expect(examples.some(r=>r.label.includes('WICImagingFactory'))).toBe(true);
@@ -32,8 +33,8 @@ CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, &factor
   it('keeps the plain-language summary and escaped evidence in HTML', async () => {
     const report = await buildReport('// ==WindhawkMod==\n// @include explorer.exe\n// ==/WindhawkMod==\nGetProcAddress(a, "sqlite3_step"); // <script>x</script>', 'mod.wh.cpp');
     const html = reportHtml(report);
-    expect(html).toContain('What this mod may do');
-    expect(html).toContain('Why it matters');
+    expect(html).toContain('What we found');
+    expect(html).toContain('Other things found');
     expect(html).toContain('Technical evidence');
     expect(html).not.toContain('<script>');
   });
@@ -85,5 +86,29 @@ describe('full-source text supplement when the C++ scanner stops early', () => {
     expect(result.calls.filter(f=>f.name.includes('DeleteFileW'))).toHaveLength(1);
     expect(result.calls.filter(f=>f.name.includes('GetProcAddress'))).toHaveLength(1);
     expect(result.calls.at(-1)?.line).toBe(50_002);
+  });
+});
+
+describe('reader-first report', () => {
+  it('keeps read-only process and permissions checks out of the review list', async () => {
+    const code = `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token);
+AdjustTokenPrivileges(token, FALSE, &privileges, 0, nullptr, nullptr);`;
+    const findings = findingsFromCalls(findLexicalCalls(code));
+    const topics = buildInsights({ findings });
+    expect(topics.find(item => item.id==='process-details')?.priority).toBe('note');
+    expect(topics.find(item => item.id==='permission-checks')?.priority).toBe('note');
+    expect(topics.find(item => item.id==='permission-changes')?.priority).toBe('review');
+  });
+
+  it('HTML shows short sections, and still keeps the technical evidence', async () => {
+    const source = 'WriteFile(handle, data, 8, &written, nullptr); GetProcAddress(module, "GetWindowTextW");';
+    const report = await buildReport(source, 'mod.wh.cpp');
+    const html = reportHtml(report);
+    expect(html).toContain('Worth a closer look');
+    expect(html).toContain('Other things found');
+    expect(html).toContain('Technical evidence');
+    expect(html).toContain('GetProcAddress');
+    expect(html).not.toContain('Why it matters');
   });
 });
