@@ -56,20 +56,6 @@ async function prepareSource(data: SourcePanelState): Promise<SourceInput> {
   return { source: data.code, filename: 'pasted-code.wh.cpp' };
 }
 
-const sample = `// ==WindhawkMod==
-// @id example-inspector
-// @name Example Mod
-// @version 1.0.0
-// @include explorer.exe
-// ==/WindhawkMod==
-#include <windows.h>
-void Example() {
-  Wh_SetFunctionHook(nullptr, nullptr, nullptr);
-  // This comment mentions DeleteFileW(), but it must not trigger a finding.
-  CreateProcessW(nullptr, L"tool.exe", nullptr, nullptr, FALSE, 0, nullptr, nullptr, nullptr, nullptr);
-  RegSetValueExW(nullptr, L"Example", 0, REG_SZ, nullptr, 0);
-}`;
-
 function saveFile(filename: string, content: string, mime: string) {
   const url = URL.createObjectURL(new Blob([content],{type:mime}));
   const anchor = document.createElement('a');
@@ -183,7 +169,6 @@ export default function App() {
     } catch(err) { setError(err instanceof Error ? err.message : 'An unexpected error occurred.'); }
     finally { setBusy(false); }
   }
-  const loadSample=()=>{setInput({mode:'paste',code:sample,url:''});setError('');};
   return <div className="app">
     <main className="wrap main">
       <div className="page-heading">
@@ -200,14 +185,12 @@ export default function App() {
             <a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Windhawk Badges ↗</a>
             <a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
           </nav>
-          <div className="catalog-summary">Static analysis · Local processing · No installation</div>
         </div>
       </div>
 
       <section className="workspace panel" aria-labelledby="analyze-title">
         <div className="workspace-top panel-heading">
           <div><p className="eyebrow">SOURCE ANALYZER</p><h2 id="analyze-title">Analyze a mod</h2></div>
-          <button type="button" className="secondary compact" onClick={loadSample} disabled={busy}>Load example</button>
         </div>
         <SourcePanel title="Current version" data={input} setData={setInput} disabled={busy}/>
         <label className="compare-toggle">

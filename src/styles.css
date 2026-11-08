@@ -37,7 +37,7 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px 30px; margin-bottom: 25px; }
 .page-heading-copy { min-width: 0; }
 .page-title-row { display: flex; align-items: center; gap: 13px; margin-bottom: 10px; }
-.brand-mark { width: 34px; height: 34px; flex: none; display: grid; place-items: center; background: #1685d2; border: 1px solid #ffffff21; border-radius: 4px; }
+.brand-mark { width: 34px; height: 34px; flex: none; display: grid; place-items: center; background: #7132a8; border: 1px solid #ffffff21; border-radius: 4px; }
 .brand-mark img { width: 27px; height: 27px; display: block; }
 .page-logo { width: 47px; height: 47px; border-radius: 7px; }
 .page-logo img { width: 36px; height: 36px; }
@@ -46,7 +46,6 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .page-heading-meta { display: flex; flex-shrink: 0; align-self: flex-end; align-items: flex-end; flex-direction: column; gap: 7px; }
 .page-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px 20px; }
 .page-links a { font-size: 12px; font-weight: 500; color: #8bc5eb; white-space: nowrap; }
-.catalog-summary { font-size: 12px; color: #a7a7a7; text-align: right; white-space: nowrap; }
 
 /* One surface, no stacked decorative cards or gradients. */
 .panel, .workspace, .results, .diff { border: 1px solid var(--border); background: var(--surface); border-radius: 4px; padding: 23px 26px; margin-bottom: 17px; }
@@ -177,7 +176,6 @@ a:hover { color: #b3dffc; text-decoration: underline; }
   .page-heading { flex-direction: column; align-items: flex-start; gap: 12px; }
   .page-heading-meta { align-self: flex-start; align-items: flex-start; }
   .page-links { justify-content: flex-start; }
-  .catalog-summary { text-align: left; }
 }
 @media (max-width: 650px) {
   .wrap { padding-left: 16px; padding-right: 16px; }
