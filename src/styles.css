@@ -11,9 +11,9 @@
   --border-strong: #515151;
   --text: #f2f2f2;
   --muted: #aaa;
-  --accent: #1784cf;
-  --accent-hover: #2798e5;
-  --focus: #56b0eb;
+  --accent: #ffce2e;
+  --accent-hover: #ffd95f;
+  --focus: #ffe27e;
 }
 * { box-sizing: border-box; }
 html { scrollbar-color: #545454 #202020; scroll-behavior: smooth; }
@@ -37,7 +37,7 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px 30px; margin-bottom: 25px; }
 .page-heading-copy { min-width: 0; }
 .page-title-row { display: flex; align-items: center; gap: 13px; margin-bottom: 10px; }
-.brand-mark { width: 34px; height: 34px; flex: none; display: grid; place-items: center; background: #7132a8; border: 1px solid #ffffff21; border-radius: 4px; }
+.brand-mark { width: 34px; height: 34px; flex: none; display: grid; place-items: center; background: #ffce2e; border: 1px solid #ffffff33; border-radius: 4px; }
 .brand-mark img { width: 27px; height: 27px; display: block; }
 .page-logo { width: 47px; height: 47px; border-radius: 7px; }
 .page-logo img { width: 36px; height: 36px; }
@@ -59,7 +59,7 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .mode-tabs { display: flex; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--border); gap: 23px; margin: 0 0 18px; }
 .tab { border: 0; border-bottom: 2px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 1px 11px; font-size: 12px; color: #a6a6a6; background: none; }
 .tab:hover:not(:disabled) { color: #f2f2f2; }
-.tab.active { border-bottom-color: #1784cf; color: #f0f0f0; font-weight: 600; }
+.tab.active { border-bottom-color: var(--accent); color: #f0f0f0; font-weight: 600; }
 .field label { display: block; margin-bottom: 9px; font-size: 12px; font-weight: 600; color: #e1e1e1; }
 .field input, .field textarea, .filters input, .filters select {
   background: var(--control); border: 1px solid var(--border-strong); border-radius: 3px;
@@ -78,8 +78,8 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .secondary, .primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 32px; font-size: 12px; font-weight: 500; border-radius: 3px; padding: 7px 12px; }
 .secondary { border: 1px solid #555; background: #2f2f2f; color: #ededed; }
 .secondary:hover:not(:disabled) { background: #383838; border-color: #717171; }
-.primary { border: 1px solid #1684ca; background: #147ec2; color: #fff; min-height: 37px; padding: 9px 16px; }
-.primary:hover:not(:disabled) { background: #258ed1; border-color: #258ed1; }
+.primary { border: 1px solid #d8aa16; background: #ffce2e; color: #1b1b1b; min-height: 37px; padding: 9px 16px; }
+.primary:hover:not(:disabled) { background: #ffd95f; border-color: #e1b623; }
 .text-button { color: #7fc3ee; background: transparent; border: none; font-size: 12px; font-weight: 500; padding: 4px 0; }
 .text-button:hover { text-decoration: underline; }
 .compact { font-size: 12px; padding: 6px 11px; min-height: 30px; }
