@@ -6,6 +6,20 @@ Windhawk Inspector is a browser-based, open-source C++ source analyzer for [Wind
 
 > This tool is independent from Windhawk and is **not** a malware detector or a safety certificate. An empty report does not mean a mod is safe.
 
+## Results in simple English
+
+The report starts with **What this mod may do**. Each topic explains:
+
+- What the code contains.
+- Why it might matter to the person installing the mod.
+- What they can check before deciding to trust it.
+
+Repeated calls are grouped into topics, with a short list of code examples. Click **Show technical details** to see the raw API names and line references. Nothing is deleted from the JSON export. The HTML export also presents the plain-English explanation first.
+
+Calls that only check running programs or Windows permissions are distinguished from calls that can change memory or permissions. A source match is not proof that an action happened or that a mod is safe or harmful.
+
+If the C++ scan reaches its node or call limit, a basic text check supplements the source. The interface marks this **Mixed scan** and warns that results may still be incomplete. Files larger than 8 MB use the basic text check from the start.
+
 ## What it does
 
 - Choose a mod by searchable name or ID from a locally hosted Windhawk catalog, or enter a public Windhawk/GitHub source URL, local `.wh.cpp`/`.cpp`/`.h`/`.hpp`/`.txt` file, or pasted C++ code.
@@ -63,7 +77,8 @@ The GitHub Actions workflow downloads the official Windhawk catalog on deploymen
 - **Potential**: a matching source pattern exists but cannot establish intent or actual runtime behavior.
 - **Not detected**: no matching rule was found in the supplied code; **never** an assurance of absence.
 - **C++ syntax parsed**: a syntax tree was available. Reported error regions or missing tokens may arise from macros or incomplete translation units. Counts do **not** measure percentage of source coverage, and an AST does not imply full C++ compilation, linking or dataflow analysis.
-- **Limited lexical scan**: WebAssembly parsing was unavailable; detection has reduced reliability.
+- **Mixed scan**: the C++ inspection reached a limit. A basic text check supplemented the full source, but it is less precise.
+- **Basic text scan**: the source was over 8 MB or the detailed parser was unavailable; detection has reduced reliability.
 
 Severity describes review priority, not the probability of maliciousness. Normal Windhawk hooks are marked informational. Common C++ algorithms, shortcut keys and System32 DLL loading are handled contextually to reduce false positives. Explicit read/write access flags are differentiated for common file-open APIs, and only the `runas` verb is treated as an explicit ShellExecute elevation request. Comments and ordinary string literals are excluded from lexical call matching, but macros and indirect calls can still evade detection.
 

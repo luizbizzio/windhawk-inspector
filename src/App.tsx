@@ -4,6 +4,7 @@ import { compareReports, groupFindings, reportFilename, reportHtml } from './ana
 import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client';
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
 import { filterCatalog, parseCatalog, type CatalogMod } from './catalog';
+import { buildInsights, coverageSummary, groupEvidence, type PlainInsight } from './analysis/insights';
 
 type SourceMode = 'url' | 'upload' | 'paste';
 interface SourcePanelState { mode: SourceMode; url: string; code: string; file?: File; }
@@ -117,6 +118,36 @@ function saveFile(filename: string, content: string, mime: string) {
   window.setTimeout(()=>URL.revokeObjectURL(url), 3000);
 }
 
+function InsightCard({ insight, onShowLine }: { insight:PlainInsight; onShowLine:(line:number)=>void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [all, setAll] = useState(false);
+  const evidence = useMemo(() => groupEvidence(insight.findings), [insight]);
+  const visible = all ? evidence : evidence.slice(0, 6);
+  return <article className="insight-card">
+    <div className="insight-top">
+      <span className={'insight-level '+insight.priority}>{insight.priority==='review' ? 'Worth checking' : 'For your information'}</span>
+      <span className="insight-count">{insight.findings.length} code {insight.findings.length===1?'match':'matches'}</span>
+    </div>
+    <h4>{insight.title}</h4>
+    <p className="insight-meaning">{insight.meaning}</p>
+    <p><strong>Why it matters</strong>{insight.why}</p>
+    <p><strong>What to check</strong>{insight.next}</p>
+    <button type="button" className="secondary compact insight-expand" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)}>
+      {expanded ? 'Hide code examples' : `Show code examples (${evidence.length})`}
+    </button>
+    {expanded && <div className="insight-evidence">
+      <p className="hint">These are source-code matches, not proof that the action happened. Matching calls are grouped to avoid repetition.</p>
+      {visible.map((row,i)=><div className="insight-evidence-row" key={i}>
+        <div><span>{row.label}</span><small>{row.locations.length} {row.locations.length===1?'location':'locations'}</small></div>
+        <div className="line-links">{row.locations.slice(0,all?8:3).filter(f=>f.line>0).map(f=><button type="button" key={f.id} className="text-button" title={`Show line ${f.line} in source`} onClick={()=>onShowLine(f.line)}>L{f.line}</button>)}
+        {row.locations.length>(all?8:3) && <small>+{row.locations.length-(all?8:3)} lines in JSON</small>}</div>
+      </div>)}
+      {evidence.length>6 && <button type="button" className="text-button insight-show-all" onClick={()=>setAll(v=>!v)}>{all?'Show fewer':`Show all ${evidence.length} examples`}</button>}
+      <p className="hint">For full arguments and every code line, open Technical details or export the JSON report.</p>
+    </div>}
+  </article>;
+}
+
 function FindingCard({ group, onShowLine }: { group:FindingGroup; onShowLine:(line:number)=>void; }) {
   const [open,setOpen] = useState(false);
   const { finding, occurrences } = group;
@@ -162,6 +193,9 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   const [severity,setSeverity] = useState<string>('all');
   const [search,setSearch] = useState('');
   const groups = useMemo(()=>groupFindings(report.findings),[report]);
+  const insights = useMemo(()=>buildInsights(report),[report]);
+  const coverage = coverageSummary(report);
+  const [advanced,setAdvanced] = useState(false);
   const filtered = groups.filter(g => {
     const f = g.finding;
     return (category==='All'||f.category===category) && (severity==='all'||f.severity===severity) &&
@@ -172,25 +206,35 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   const parserIssues = (parser?.syntaxErrorNodes ?? 0) + (parser?.missingNodes ?? 0);
   function jumpTo(line:number) { setFocusLine(line); document.querySelector('.viewer')?.scrollIntoView({behavior:'smooth'}); }
   return <section className="results">
-    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?(parserIssues ? 'C++ parsed with caveats':'C++ syntax parsed'):'Limited lexical scan'}</span></div>
-    <div className="stats"><div><strong>{groups.length}</strong><span>Capabilities</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{groups.filter(g=>g.finding.severity==='high'||g.finding.severity==='medium').length}</strong><span>Review suggested</span></div><div><strong>{report.findings.length}</strong><span>Occurrences</span></div></div>
+    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?(parserIssues ? 'Parsing gaps found':'C++ parsed'):report.coverage==='hybrid'?'Mixed scan':'Basic text scan'}</span></div>
+    <div className={'coverage-notice '+coverage.kind} role="status"><div><Icon name={coverage.kind==='caution'?'alert':'check'} size={19}/><strong>{coverage.title}</strong></div><p>{coverage.explanation}</p></div>
+    <section className="plain-summary" aria-label="Plain-language findings">
+      <div className="plain-summary-heading"><div><p className="eyebrow">IN SIMPLE WORDS</p><h3>What this mod may do</h3><p>{insights.length ? `${report.findings.length} code matches, shown as ${insights.length} understandable topics. A match is not proof of harmful behavior.` : 'No matching actions were found in the parts of the source checked. This does not mean the mod is safe.'}</p></div></div>
+      {insights.some(i=>i.priority==='review') && <p className="review-note">Some actions are worth checking more closely. This is not a malware verdict or a risk score.</p>}
+      <div className="insight-grid">{insights.map(item=><InsightCard key={item.id} insight={item} onShowLine={jumpTo}/>)}</div>
+    </section>
+    <div className="plain-actions"><button type="button" className="secondary" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}>{advanced?'Hide technical details':'Show technical details'}</button><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
+    {advanced && <div className="advanced-report" aria-label="Technical details">
+    <div className="stats"><div><strong>{groups.length}</strong><span>Technical groups</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{groups.filter(g=>g.finding.severity==='high'||g.finding.severity==='medium').length}</strong><span>Review suggested</span></div><div><strong>{report.findings.length}</strong><span>Occurrences</span></div></div>
     <div className="meta-grid"><div><span>Included processes</span><strong>{report.metadata.includes.join(', ') || 'Not declared'}</strong></div><div><span>Excluded processes</span><strong>{report.metadata.excludes.join(', ') || 'None declared'}</strong></div><div><span>SHA-256</span><code title={report.sha256}>{report.sha256.slice(0,18)}…</code></div><div><span>Analyzed</span><strong>{new Date(report.analyzedAt).toLocaleString()}</strong></div></div>
     <div className="parser-summary" aria-label="C++ parser coverage">
       <strong>Parser coverage</strong>
-      {report.coverage==='ast' && parser ? <>
-        <span>{parser.analyzedCalls.toLocaleString()} calls inspected</span>
+      {(report.coverage==='ast'||report.coverage==='hybrid') && parser ? <>
+        <span>{parser.analyzedCalls.toLocaleString()} C++ calls inspected</span>
+        {report.coverage==='hybrid' && <span>{parser.lexicalSupplementCalls ?? 0} extra text matches</span>}
         <span>{parser.syntaxErrorNodes} error regions</span>
         <span>{parser.missingNodes} missing tokens</span>
         {parser.truncated && <span className="parser-warning">Inspection limit reached</span>}
         {!!parser.sampledIssueLines.length && <span>Examples at lines {parser.sampledIssueLines.join(', ')}</span>}
-      </> : <span>Limited lexical scan. Parser diagnostics unavailable.</span>}
+      </> : <span>Basic text scan. Full C++ parser diagnostics unavailable.</span>}
       <p>These counts describe syntax analysis, not the percentage of safe or understood code. Macros and external dependencies are not resolved.</p>
     </div>
-    <div className="section-heading"><h3>Capabilities & findings</h3><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
+    <div className="section-heading"><h3>Raw technical findings</h3><p className="muted tiny">Every source match is kept in the JSON export.</p></div>
     <div className="filters"><input aria-label="Search findings" placeholder="Search findings..." value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Filter category" value={category} onChange={e=>setCategory(e.target.value as Category|'All')}><option value="All">All categories</option>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select><select aria-label="Filter severity" value={severity} onChange={e=>setSeverity(e.target.value)}><option value="all">All severities</option>{SEVERITY_ORDER.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
     <div className="findings-list">{filtered.length?filtered.slice(0,200).map(g=><FindingCard key={g.id} group={g} onShowLine={jumpTo}/>):<div className="empty-findings">No matching findings. This does not mean the mod is safe.</div>}</div>
     {filtered.length>200 && <p className="hint">Showing the first 200 matching capabilities. Use filters or search to narrow results.</p>}
     <div className="limits"><div><Icon name="alert" size={19}/><strong>Interpretation limits</strong></div><ul>{report.limitations.map((l,i)=><li key={i}>{l}</li>)}</ul><p>Severity indicates the importance of reviewing a capability, not a probability that the mod is malware.</p></div>
+    </div>}
     <SourceViewer source={source} focusLine={focusLine}/>
   </section>;
 }

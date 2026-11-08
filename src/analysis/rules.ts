@@ -98,6 +98,44 @@ function shouldSuppress(call: CallSite, rule: Rule, symbol: string): boolean {
 
 function refineCall(call: CallSite, rule: Rule, symbol: string): Pick<Finding, 'severity' | 'category' | 'certainty' | 'title' | 'explanation' | 'recommendation'> | null {
   const args = call.args;
+  if (rule.id === 'mem-other' && symbol === 'OpenProcess') {
+    const flags = splitCallArguments(args)[0] ?? '';
+    const readOnly = /\b(?:PROCESS_QUERY_LIMITED_INFORMATION|PROCESS_QUERY_INFORMATION|SYNCHRONIZE|PROCESS_VM_READ)\b/.test(flags);
+    const modifying = /\b(?:PROCESS_ALL_ACCESS|PROCESS_VM_WRITE|PROCESS_VM_OPERATION|PROCESS_CREATE_THREAD|PROCESS_TERMINATE|PROCESS_SET_INFORMATION|PROCESS_SUSPEND_RESUME|WRITE_DAC|WRITE_OWNER|GENERIC_ALL)\b/.test(flags);
+    if (readOnly && !modifying) return {
+      severity: /\bPROCESS_VM_READ\b/.test(flags) ? 'medium' : 'info', category: 'Memory', certainty: 'detected',
+      title: /\bPROCESS_VM_READ\b/.test(flags) ? 'Process memory read permission' : 'Process information access',
+      explanation: /\bPROCESS_VM_READ\b/.test(flags)
+        ? 'The mod requests permission to read another process memory. This call alone does not read it.'
+        : 'The mod requests information or wait access to a running process. These flags do not request memory modification.',
+      recommendation: 'Check which process is targeted and why the mod needs its status or details.',
+    };
+  }
+  if (rule.id === 'priv-token') {
+    if (symbol === 'OpenProcessToken') {
+      const access = splitCallArguments(args)[1] ?? '';
+      const change = /\b(?:TOKEN_ADJUST_PRIVILEGES|TOKEN_ADJUST_DEFAULT|TOKEN_ADJUST_SESSIONID|TOKEN_DUPLICATE|TOKEN_ALL_ACCESS|GENERIC_ALL)\b/.test(access);
+      const query = /\bTOKEN_QUERY\b/.test(access);
+      if (query && !change) return {
+        severity: 'info', category: 'Privileges', certainty: 'detected',
+        title: 'Windows permission check',
+        explanation: 'The mod requests access to check Windows security permissions. This is not a request for administrator rights.',
+        recommendation: 'Check why the mod reads the security settings of a process.',
+      };
+      if (change) return {
+        severity: 'medium', category: 'Privileges', certainty: 'detected',
+        title: 'Sensitive token access requested',
+        explanation: 'The code requests permission to adjust or copy a security token. This alone does not change any privilege or prove that it succeeded.',
+        recommendation: 'Check which permissions can be changed and why.',
+      };
+    }
+    if (symbol === 'AdjustTokenPrivileges') return {
+      severity: 'medium', category: 'Privileges', certainty: 'detected',
+      title: 'Windows permission adjustment',
+      explanation: 'The code contains a call that can enable or disable privileges in a security token. It does not prove that it succeeded.',
+      recommendation: 'Check which privilege is changed and why the mod needs it.',
+    };
+  }
   if (rule.id === 'fs-create') {
     const parts = splitCallArguments(args);
     let access = '';
@@ -105,7 +143,7 @@ function refineCall(call: CallSite, rule: Rule, symbol: string): Pick<Finding, '
     else if (['fopen','_wfopen','_fsopen'].includes(symbol)) access = parts[1] ?? '';
     let read = /\b(?:GENERIC_READ|FILE_GENERIC_READ|FILE_READ_DATA|FILE_READ_ATTRIBUTES)\b/.test(access);
     let write = /\b(?:GENERIC_WRITE|FILE_GENERIC_WRITE|FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_ALL_ACCESS|GENERIC_ALL)\b/.test(access);
-    const mode = access.match(/^(?:L|u8|u|U)?"([rwaxtbe+]+)"$/i)?.[1];
+    const mode = access.match(/^(?:L|u8|u|U)?"\s*([rwaxtbe+]+)(?:\s*,[^"]*)?"$/i)?.[1];
     if (mode) { read ||= mode.includes('r') || mode.includes('+'); write ||= /[wax+]/.test(mode); }
     if (read || write) return {
       severity: write ? 'medium' : 'low', category: 'File System', certainty: 'detected',

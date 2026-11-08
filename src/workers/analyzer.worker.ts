@@ -3,6 +3,7 @@ import { Parser, Language } from 'web-tree-sitter';
 import { buildReport } from '../analysis/report';
 import { findLexicalCalls, MAX_LEXICAL_CALLS } from '../analysis/lexical';
 import { isTrackedCall } from '../analysis/rules';
+import { supplementTruncatedAst } from '../analysis/hybrid';
 import type { ParseResult } from '../analysis/types';
 import { inspectSyntaxTree } from '../analysis/parser';
 import { MAX_AST_SOURCE_BYTES, MAX_SOURCE_BYTES } from '../analysis/url';
@@ -42,7 +43,7 @@ async function parseSource(source: string, bytes: number): Promise<ParseResult> 
     const tree = parser.parse(source);
     if (!tree) throw new Error('C++ parser returned no syntax tree');
     try {
-      return inspectSyntaxTree(source, tree);
+      return supplementTruncatedAst(source, inspectSyntaxTree(source, tree));
     } finally {
       tree.delete();
     }

@@ -6,7 +6,7 @@ export const CATEGORIES = [
 export type Category = typeof CATEGORIES[number];
 export type Severity = 'info' | 'low' | 'medium' | 'high';
 export type Certainty = 'detected' | 'potential';
-export type Coverage = 'ast' | 'lexical';
+export type Coverage = 'ast' | 'hybrid' | 'lexical';
 export interface Finding {
   id: string;
   ruleId: string;
@@ -40,6 +40,7 @@ export interface ParserDiagnostics {
   missingNodes: number;
   sampledIssueLines: number[];
   truncated: boolean;
+  lexicalSupplementCalls?: number;
 }
 export interface FindingGroup {
   id: string;
