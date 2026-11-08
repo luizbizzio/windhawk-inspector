@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "catalog": "node scripts/generate-catalog.mjs",
-    "test:catalog": "node --test tests/catalog-generator.test.mjs"
+    "test:catalog": "node --test tests/catalog-generator.node.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
