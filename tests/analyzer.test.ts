@@ -119,10 +119,10 @@ describe('Capability groups and evidence retention', () => {
 }`;
     const report = await buildReport(code, 'keys.wh.cpp');
     const groups = groupFindings(report.findings);
-    expect(report.findings).toHaveLength(3);
-    expect(groups).toHaveLength(2);
+    expect(report.findings).toHaveLength(4);
+    expect(groups).toHaveLength(3);
     expect(groups.find(g=>g.finding.explanation.includes('VK_ESCAPE'))?.occurrences.map(f=>f.line)).toEqual([2,3]);
-    expect(JSON.parse(JSON.stringify(report)).findings).toHaveLength(3);
+    expect(JSON.parse(JSON.stringify(report)).findings).toHaveLength(4);
     const html = reportHtml(report);
     expect(html).toContain('2 occurrences');
     expect(html).toContain('Line 2');
