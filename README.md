@@ -36,7 +36,7 @@ Windhawk-inspired minimal dark interface.
 - `https://github.com/<owner>/<repo>/blob/<branch>/<path>.wh.cpp`
 - `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>.cpp`
 
-GitHub browser URLs with a branch name containing `/` are not currently supported. Use a raw URL with a simple ref instead. Only public GitHub sources are fetched; URLs from arbitrary hosts are blocked. CORS restrictions and unavailable source files may prevent fetching. All source inputs have a 2 MB limit.
+GitHub browser URLs with a branch name containing `/` are not currently supported. Use a raw URL with a simple ref instead. Only public GitHub sources are fetched; URLs from arbitrary hosts are blocked. CORS restrictions and unavailable source files may prevent fetching. All source inputs have a 50 MB limit (50,000,000 bytes). Inputs over 8 MB use a clearly labeled limited lexical scan rather than the C++ AST parser to reduce browser memory usage. Large analyses may be slower or reach the call inspection limit.
 
 ## Local development
 

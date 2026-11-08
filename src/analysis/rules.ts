@@ -52,6 +52,11 @@ export function normalizeSymbol(name: string): string {
   return name.replace(/<[^<>]*>/g, '').split(/::|->|\./).at(-1)?.trim().replace(/^\*+/, '') ?? '';
 }
 
+/** Restrict large-file lexical scanning to known API candidates. */
+export function isTrackedCall(name: string): boolean {
+  return lookup.has(normalizeSymbol(name));
+}
+
 /** Best-effort split of top-level C++ call arguments, respecting basic nested expressions and literals. */
 function splitCallArguments(raw: string): string[] {
   const out: string[] = [];

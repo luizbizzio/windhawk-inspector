@@ -1,4 +1,5 @@
-export const MAX_SOURCE_BYTES = 2_000_000;
+export const MAX_SOURCE_BYTES = 50_000_000;
+export const MAX_AST_SOURCE_BYTES = 8_000_000;
 const VALID_FILE = /\.(?:wh\.cpp|cpp|hpp|h|txt)$/i;
 const SEGMENT = /^[a-zA-Z0-9_.-]+$/;
 
@@ -44,7 +45,7 @@ export async function loadSourceUrl(input: string, signal?: AbortSignal): Promis
   const response = await fetch(raw, { signal, redirect: 'error', cache: 'no-store' });
   if (!response.ok) throw new Error(`Could not read source (HTTP ${response.status}). Check the URL or repository visibility.`);
   const length = Number(response.headers.get('content-length') ?? '0');
-  if (length > MAX_SOURCE_BYTES) throw new Error('Source exceeds the 2 MB limit.');
+  if (length > MAX_SOURCE_BYTES) throw new Error('Source exceeds the 50 MB limit.');
   const reader = response.body?.getReader();
   if (!reader) throw new Error('This browser cannot stream the source.');
   const chunks: Uint8Array[] = [];
@@ -54,7 +55,7 @@ export async function loadSourceUrl(input: string, signal?: AbortSignal): Promis
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_SOURCE_BYTES) throw new Error('Source exceeds the 2 MB limit.');
+      if (size > MAX_SOURCE_BYTES) throw new Error('Source exceeds the 50 MB limit.');
       chunks.push(value);
     }
   } finally { await reader.cancel().catch(() => undefined); }

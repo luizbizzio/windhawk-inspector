@@ -3,7 +3,7 @@ import { findingsFromCalls, findingsFromMetadata } from './rules';
 import { parseMetadata } from './metadata';
 import { findLexicalCalls } from './lexical';
 
-export const ENGINE_VERSION = '0.1.2';
+export const ENGINE_VERSION = '0.2.1';
 const BASE_LIMITATIONS = [
   'Static source analysis cannot prove what executes at runtime or that a mod is safe.',
   'Macro expansion, external headers/libraries, generated code, indirect calls and dynamic behavior may be missed.',

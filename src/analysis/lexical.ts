@@ -1,45 +1,64 @@
 import type { CallSite } from './types';
 
+export const MAX_LEXICAL_CALLS = 10_000;
+
 /** Masks comments and string/character literals, preserving offsets and line breaks.
  *  This is a limited fallback, not an alternative C++ semantic parser.
  */
 export function maskNonCode(source: string): string {
-  let result = '';
+  // Emit entire code spans, not one-character string concatenations. The latter
+  // can exhaust browser memory when scanning multi-megabyte C++ files.
+  const parts: string[] = [];
+  const blank = (span: string) => span.replace(/[^\r\n]/g, ' ');
   let i = 0;
-  const blank = (s: string) => s.replace(/[^\r\n]/g, ' ');
+  let codeStart = 0;
+  const hide = (end: number) => {
+    if (i > codeStart) parts.push(source.slice(codeStart, i));
+    parts.push(blank(source.slice(i, end)));
+    i = end;
+    codeStart = end;
+  };
   while (i < source.length) {
     if (source.startsWith('//', i)) {
-      let j = source.indexOf('\n', i); if (j === -1) j = source.length;
-      result += blank(source.slice(i, j)); i = j; continue;
+      let end = source.indexOf('\n', i);
+      if (end === -1) end = source.length;
+      hide(end);
+      continue;
     }
     if (source.startsWith('/*', i)) {
-      let j = source.indexOf('*/', i + 2); j = j < 0 ? source.length : j + 2;
-      result += blank(source.slice(i, j)); i = j; continue;
+      let end = source.indexOf('*/', i + 2);
+      end = end < 0 ? source.length : end + 2;
+      hide(end);
+      continue;
     }
-    // C++ raw string: R"delimiter(content)delimiter" with optional encoding prefix.
-    if (source[i] === 'R' && source[i+1] === '"') {
-      const match = source.slice(i).match(/^R"([^()\\\s]{0,16})\(/);
-      if (match) {
-        const close = ')' + match[1] + '"';
-        let j = source.indexOf(close, i + match[0].length);
-        j = j < 0 ? source.length : j + close.length;
-        result += blank(source.slice(i, j)); i = j; continue;
+    // C++ raw string: R"delimiter(content)delimiter" (also supports encoding prefixes).
+    if (source[i] === 'R' && source[i + 1] === '"') {
+      const opening = source.slice(i, i + 20).match(/^R"([^()\\\s]{0,16})\(/);
+      if (opening) {
+        const closing = ')' + opening[1] + '"';
+        let end = source.indexOf(closing, i + opening[0].length);
+        end = end < 0 ? source.length : end + closing.length;
+        hide(end);
+        continue;
       }
     }
     if (source[i] === '"' || source[i] === "'") {
-      const quote = source[i]; let j = i + 1;
-      while (j < source.length) {
-        if (source[j] === '\\') { j += 2; continue; }
-        if (source[j++] === quote) break;
+      const quote = source[i];
+      let end = i + 1;
+      while (end < source.length) {
+        if (source[end] === '\\') { end += 2; continue; }
+        if (source[end++] === quote) break;
       }
-      result += blank(source.slice(i, j)); i = j; continue;
+      hide(Math.min(end, source.length));
+      continue;
     }
-    result += source[i++];
+    i++;
   }
-  return result;
+  if (codeStart < source.length) parts.push(source.slice(codeStart));
+  return parts.join('');
 }
 
-export function findLexicalCalls(source: string): CallSite[] {
+export function findLexicalCalls(source: string, onlyTracked?: (name: string) => boolean): CallSite[] {
   const masked = maskNonCode(source);
   const lines = source.split(/\r?\n/);
   const calls: CallSite[] = [];
@@ -47,7 +66,11 @@ export function findLexicalCalls(source: string): CallSite[] {
   const offsets = [0];
   for (let i=0; i<source.length; i++) if (source[i] === '\n') offsets.push(i+1);
   let match: RegExpExecArray | null;
-  while ((match = pattern.exec(masked)) && calls.length < 10000) {
+  while ((match = pattern.exec(masked)) && calls.length < MAX_LEXICAL_CALLS) {
+    const name = match[0].slice(0, -1).trim();
+    // On large files inspect every call position, not just the first 10,000
+    // unrelated C++ functions. Count only relevant APIs toward the cap.
+    if (onlyTracked && !onlyTracked(name)) continue;
     const position = match.index;
     let lo = 0, hi = offsets.length - 1;
     while (lo <= hi) { const mid = (lo + hi) >>> 1; if (offsets[mid] <= position) lo = mid + 1; else hi = mid - 1; }
@@ -61,7 +84,7 @@ export function findLexicalCalls(source: string): CallSite[] {
       end++;
     }
     calls.push({
-      name: match[0].slice(0, -1).trim(), line: row+1,
+      name, line: row+1,
       column: position - offsets[row] + 1,
       args: source.slice(start, depth === 0 ? end-1 : end),
       excerpt: lines[row] ?? '',

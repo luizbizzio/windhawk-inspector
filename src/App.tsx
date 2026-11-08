@@ -91,7 +91,7 @@ function SourcePanel({ title, data, setData, disabled, mods, catalogStatus }: { 
         <button type="button" key={mode} disabled={disabled} role="tab" aria-selected={data.mode===mode} className={data.mode===mode?'tab active':'tab'} onClick={()=>setMode(mode)}><Icon name={icon} size={16}/>{label}</button>)}
     </div>
     {data.mode === 'url' && <><ModPicker mods={mods} catalogStatus={catalogStatus} data={data} setData={setData} disabled={disabled}/><div className="field manual-source"><label htmlFor={title+'-url'}>Windhawk or GitHub source URL</label><input id={title+'-url'} type="url" value={data.url} placeholder="https://windhawk.net/mods/..." disabled={disabled} onChange={e => setData({...data,url:e.target.value})}/><p className="hint">Windhawk mod URL, GitHub file or raw URL. Public sources only.</p></div></>}
-    {data.mode === 'upload' && <div className="upload-zone"><input ref={fileRef} type="file" accept=".cpp,.h,.hpp,.txt" disabled={disabled} className="visually-hidden" onChange={(e:ChangeEvent<HTMLInputElement>)=>setData({...data,file:e.target.files?.[0]})}/><Icon name="upload" size={29}/><strong>{data.file?.name ?? 'Select a source file'}</strong><span className="muted">.wh.cpp · .cpp · .h · .hpp · .txt · up to 2 MB</span><button type="button" className="secondary compact" onClick={()=>fileRef.current?.click()} disabled={disabled}>Browse files</button></div>}
+    {data.mode === 'upload' && <div className="upload-zone"><input ref={fileRef} type="file" accept=".cpp,.h,.hpp,.txt" disabled={disabled} className="visually-hidden" onChange={(e:ChangeEvent<HTMLInputElement>)=>setData({...data,file:e.target.files?.[0]})}/><Icon name="upload" size={29}/><strong>{data.file?.name ?? 'Select a source file'}</strong><span className="muted">.wh.cpp · .cpp · .h · .hpp · .txt · up to 50 MB</span><button type="button" className="secondary compact" onClick={()=>fileRef.current?.click()} disabled={disabled}>Browse files</button></div>}
     {data.mode === 'paste' && <div className="field"><label htmlFor={title+'-code'}>Paste C++ source</label><textarea id={title+'-code'} value={data.code} placeholder="// ==WindhawkMod==\n// @id example\n// @include explorer.exe\n// ==/WindhawkMod==" onChange={e=>setData({...data,code:e.target.value})} disabled={disabled} spellCheck={false} rows={7}/><p className="hint">Code is processed locally. No upload or execution.</p></div>}
   </section>;
 }
@@ -106,7 +106,7 @@ async function prepareSource(data: SourcePanelState): Promise<SourceInput> {
     return readLocalFile(data.file);
   }
   if (!data.code.trim()) throw new Error('Paste C++ code first.');
-  if (new TextEncoder().encode(data.code).byteLength > MAX_SOURCE_BYTES) throw new Error('Pasted code exceeds the 2 MB limit.');
+  if (new TextEncoder().encode(data.code).byteLength > MAX_SOURCE_BYTES) throw new Error('Pasted code exceeds the 50 MB limit.');
   return { source: data.code, filename: 'pasted-code.wh.cpp' };
 }
 
