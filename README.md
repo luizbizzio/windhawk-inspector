@@ -8,7 +8,7 @@ Windhawk Inspector is a browser-based, open-source C++ source analyzer for [Wind
 
 ## What it does
 
-- Input via Windhawk catalog URL, public GitHub source URL, local `.wh.cpp`/`.cpp`/`.h`/`.hpp`/`.txt` file, or pasted C++ code.
+- Choose a mod by searchable name or ID from a locally hosted Windhawk catalog, or enter a public Windhawk/GitHub source URL, local `.wh.cpp`/`.cpp`/`.h`/`.hpp`/`.txt` file, or pasted C++ code.
 - Classifies source-level findings across network, downloads, file system, Registry, process execution, cross-process memory, hooks, persistence, privileges, dynamic loading, input/shortcuts, sensitive data and Windhawk metadata.
 - Groups equivalent API findings in the interface while retaining every source occurrence, argument and line number. JSON reports keep the original per-occurrence findings for downstream tools.
 - Shows exact source lines, API names, arguments (raw source text), explanations, review suggestions, process includes/excludes and SHA-256.
@@ -25,7 +25,7 @@ Windhawk-inspired minimal dark interface.
 ## Usage
 
 1. Open the hosted page, or run the project locally.
-2. Paste a Windhawk mod URL, select a source file, or paste C++ code.
+2. Find a Windhawk mod by name or ID (or paste a URL, select a file or paste source code).
 3. Optionally enable version comparison and provide the previous source.
 4. Select **Analyze source**.
 5. Inspect evidence, limitations and reports.
@@ -51,9 +51,11 @@ npm run build
 
 The postinstall script copies `web-tree-sitter.wasm` and `tree-sitter-cpp.wasm` into `public/wasm/`. These files are build-time runtime assets, not tracked in Git. The app is a static SPA and does not require a backend.
 
+The selectable Windhawk mod catalog is generated from the official public catalog during the GitHub Pages build. To generate it locally, run `npm run catalog` while online. The generated `public/data/catalog.json` is ignored by Git and bundled as a static file into the site. If the catalog is temporarily unavailable, manual URLs, file uploads and pasted code still work.
+
 ## Static-host deployment
 
-The GitHub Actions workflow builds the app with a `/windhawk-inspector/` base path and deploys to GitHub Pages. Set **Settings → Pages → Build and deployment → GitHub Actions**, and confirm your repository visibility/plan permits Pages. For a custom domain at the root, set `GITHUB_PAGES_BASE=/` and configure the custom domain and DNS separately.
+The GitHub Actions workflow downloads the official Windhawk catalog on deployment and on a daily schedule, then builds the app with a `/windhawk-inspector/` base path and deploys to GitHub Pages. Set **Settings → Pages → Build and deployment → GitHub Actions**, and confirm your repository visibility/plan permits Pages. For a custom domain at the root, set `GITHUB_PAGES_BASE=/` and configure the custom domain and DNS separately.
 
 ## How to interpret findings
 
@@ -88,4 +90,4 @@ Automated tests cover grouped findings with evidence retention, the Taskbar Zone
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).

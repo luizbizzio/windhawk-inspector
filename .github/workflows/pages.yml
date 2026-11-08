@@ -2,6 +2,8 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '41 5 * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +25,8 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm test
+      - run: npm run test:catalog
+      - run: npm run catalog
       - run: npm run build
         env:
           GITHUB_PAGES_BASE: /windhawk-inspector/

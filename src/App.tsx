@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { CATEGORIES, type Category, type FindingGroup, type ScanReport } from './analysis/types';
 import { compareReports, groupFindings, reportFilename, reportHtml } from './analysis/report';
 import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client';
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
+import { filterCatalog, parseCatalog, type CatalogMod } from './catalog';
 
 type SourceMode = 'url' | 'upload' | 'paste';
 interface SourcePanelState { mode: SourceMode; url: string; code: string; file?: File; }
@@ -27,7 +28,60 @@ function Icon({ name, size=20 }: {name:string; size?:number}) {
   return <svg {...common}>{icons[name] ?? icons.shield}</svg>;
 }
 
-function SourcePanel({ title, data, setData, disabled }: { title:string; data: SourcePanelState; setData:(p:SourcePanelState)=>void; disabled:boolean; }) {
+function ModPicker({ mods, data, setData, disabled, catalogStatus }: {mods:CatalogMod[];data:SourcePanelState;setData:(p:SourcePanelState)=>void;disabled:boolean;catalogStatus:string}) {
+  const [query,setQuery] = useState('');
+  const [expanded,setExpanded] = useState(false);
+  const [active,setActive] = useState(0);
+  const wrapper = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const matches = useMemo(() => filterCatalog(mods, query, 12), [mods, query]);
+  const selected = mods.find(mod => data.url === `https://windhawk.net/mods/${mod.id}`);
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!wrapper.current?.contains(event.target as Node)) setExpanded(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+  function choose(mod:CatalogMod) {
+    setData({...data, mode:'url', url:`https://windhawk.net/mods/${mod.id}`});
+    setQuery(mod.name); setExpanded(false); setActive(0);
+  }
+  function onKeyDown(event:KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {setExpanded(false);return;}
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      setExpanded(true);
+      setActive(i => Math.min(matches.length-1,Math.max(0,i+(event.key==='ArrowDown'?1:-1))));
+    } else if (event.key === 'Enter' && expanded && matches.length) {
+      event.preventDefault();choose(matches[Math.min(active,matches.length-1)]);
+    }
+  }
+  return <div className="field mod-field" ref={wrapper}>
+    <label htmlFor={`${listId}-search`}>Find a Windhawk mod</label>
+    <div className="mod-search-wrap">
+      <input id={`${listId}-search`} type="search" role="combobox" autoComplete="off"
+        aria-autocomplete="list" aria-expanded={expanded && matches.length>0}
+        aria-controls={`${listId}-results`} aria-activedescendant={expanded&&matches.length?`${listId}-item-${Math.min(active,matches.length-1)}`:undefined}
+        placeholder={mods.length ? 'Search by name or mod ID' : catalogStatus}
+        value={query} disabled={disabled||!mods.length}
+        onFocus={()=>{if(query.trim())setExpanded(true);}}
+        onChange={e=>{setQuery(e.target.value);setActive(0);setExpanded(Boolean(e.target.value.trim()));}}
+        onKeyDown={onKeyDown}/>
+      {expanded && query.trim() && <div id={`${listId}-results`} className="mod-results" role="listbox" aria-label="Matching Windhawk mods">
+        {matches.length ? matches.map((mod,i)=><button type="button" role="option" aria-selected={active===i} id={`${listId}-item-${i}`} key={mod.id}
+          className={'mod-result'+(active===i?' active':'')} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(mod)}>
+          <span>{mod.name}<small>{mod.author ? `by ${mod.author}` : mod.id}</small></span><code>{mod.id}</code>
+        </button>) : <p className="mod-empty">No matching mods</p>}
+      </div>}
+    </div>
+    {selected && <div className="selected-mod"><span><strong>{selected.name}</strong><small>{selected.id}</small></span>
+      <a href={`https://windhawk.net/mods/${selected.id}`} target="_blank" rel="noopener noreferrer">View mod ↗</a></div>}
+    <p className="hint">{catalogStatus}. Select a mod to fill its source URL, or paste a URL below.</p>
+  </div>;
+}
+
+function SourcePanel({ title, data, setData, disabled, mods, catalogStatus }: { title:string; data: SourcePanelState; setData:(p:SourcePanelState)=>void; disabled:boolean; mods:CatalogMod[];catalogStatus:string; }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const setMode = (mode: SourceMode) => setData({ ...data, mode });
   return <section className="source-panel">
@@ -36,7 +90,7 @@ function SourcePanel({ title, data, setData, disabled }: { title:string; data: S
       {([['url','URL','link'],['upload','Upload','upload'],['paste','Paste code','code']] as const).map(([mode,label,icon]) =>
         <button type="button" key={mode} disabled={disabled} role="tab" aria-selected={data.mode===mode} className={data.mode===mode?'tab active':'tab'} onClick={()=>setMode(mode)}><Icon name={icon} size={16}/>{label}</button>)}
     </div>
-    {data.mode === 'url' && <div className="field"><label htmlFor={title+'-url'}>Windhawk or GitHub source URL</label><input id={title+'-url'} type="url" value={data.url} placeholder="https://windhawk.net/mods/..." disabled={disabled} onChange={e => setData({...data,url:e.target.value})}/><p className="hint">Official Windhawk catalog, GitHub file or raw URL. Public sources only.</p></div>}
+    {data.mode === 'url' && <><ModPicker mods={mods} catalogStatus={catalogStatus} data={data} setData={setData} disabled={disabled}/><div className="field manual-source"><label htmlFor={title+'-url'}>Windhawk or GitHub source URL</label><input id={title+'-url'} type="url" value={data.url} placeholder="https://windhawk.net/mods/..." disabled={disabled} onChange={e => setData({...data,url:e.target.value})}/><p className="hint">Windhawk mod URL, GitHub file or raw URL. Public sources only.</p></div></>}
     {data.mode === 'upload' && <div className="upload-zone"><input ref={fileRef} type="file" accept=".cpp,.h,.hpp,.txt" disabled={disabled} className="visually-hidden" onChange={(e:ChangeEvent<HTMLInputElement>)=>setData({...data,file:e.target.files?.[0]})}/><Icon name="upload" size={29}/><strong>{data.file?.name ?? 'Select a source file'}</strong><span className="muted">.wh.cpp · .cpp · .h · .hpp · .txt · up to 2 MB</span><button type="button" className="secondary compact" onClick={()=>fileRef.current?.click()} disabled={disabled}>Browse files</button></div>}
     {data.mode === 'paste' && <div className="field"><label htmlFor={title+'-code'}>Paste C++ source</label><textarea id={title+'-code'} value={data.code} placeholder="// ==WindhawkMod==\n// @id example\n// @include explorer.exe\n// ==/WindhawkMod==" onChange={e=>setData({...data,code:e.target.value})} disabled={disabled} spellCheck={false} rows={7}/><p className="hint">Code is processed locally. No upload or execution.</p></div>}
   </section>;
@@ -149,6 +203,25 @@ function DiffView({ previous, current }: {previous:ScanReport; current:ScanRepor
 
 export default function App() {
   const [input,setInput] = useState<SourcePanelState>(initialSource);
+  const [mods,setMods] = useState<CatalogMod[]>([]);
+  const [catalogStatus,setCatalogStatus] = useState('Loading catalog');
+  useEffect(() => {
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch(`${import.meta.env.BASE_URL}data/catalog.json`, {signal:ctrl.signal});
+        if(!response.ok) throw new Error(`HTTP ${response.status}`);
+        const catalog = parseCatalog(await response.json());
+        if (!ctrl.signal.aborted) {
+          setMods(catalog.mods);
+          setCatalogStatus(`${catalog.mods.length.toLocaleString()} mods · updated ${new Date(catalog.generatedAt).toLocaleDateString()}`);
+        }
+      } catch(err) {
+        if (!ctrl.signal.aborted) setCatalogStatus('Catalog unavailable');
+      }
+    })();
+    return () => ctrl.abort();
+  }, []);
   const [before,setBefore] = useState<SourcePanelState>(initialSource);
   const [compare,setCompare] = useState(false);
   const [busy,setBusy] = useState(false);
@@ -192,12 +265,12 @@ export default function App() {
         <div className="workspace-top panel-heading">
           <div><p className="eyebrow">SOURCE ANALYZER</p><h2 id="analyze-title">Analyze a mod</h2></div>
         </div>
-        <SourcePanel title="Current version" data={input} setData={setInput} disabled={busy}/>
+        <SourcePanel title="Current version" data={input} setData={setInput} disabled={busy} mods={mods} catalogStatus={catalogStatus}/>
         <label className="compare-toggle">
           <input type="checkbox" checked={compare} disabled={busy} onChange={e=>setCompare(e.target.checked)}/>
           <span><strong>Compare versions</strong><small>Show added and removed capabilities</small></span>
         </label>
-        {compare && <SourcePanel title="Previous version" data={before} setData={setBefore} disabled={busy}/>}
+        {compare && <SourcePanel title="Previous version" data={before} setData={setBefore} disabled={busy} mods={mods} catalogStatus={catalogStatus}/>}
         {error && <div className="error" role="alert"><Icon name="alert" size={18}/>{error}</div>}
         <div className="action-line">
           <button type="button" className="primary" onClick={analyze} disabled={busy}><Icon name="search" size={16}/>{busy?'Analyzing...':'Analyze source'}</button>
@@ -213,7 +286,7 @@ export default function App() {
         <div className="footer-brand"><span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="31" height="31"/></span><div><strong>Windhawk Inspector</strong><p>Open-source static analysis for Windhawk mods.</p></div></div>
         <div className="footer-links"><a href="https://windhawk.net/" target="_blank" rel="noopener noreferrer">Windhawk</a><a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Windhawk Badges</a><a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer">GitHub</a></div>
       </div>
-      <div className="footer-bottom"><span>Independent project, not affiliated with Windhawk.</span><span>No tracking · No server uploads · MIT License</span></div>
+      <div className="footer-bottom"><span>Independent project, not affiliated with Windhawk.</span><span>No tracking · No server uploads · Apache-2.0 License</span></div>
     </div></footer>
   </div>;
 }

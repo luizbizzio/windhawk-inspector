@@ -37,7 +37,7 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px 30px; margin-bottom: 25px; }
 .page-heading-copy { min-width: 0; }
 .page-title-row { display: flex; align-items: center; gap: 13px; margin-bottom: 10px; }
-.brand-mark { width: 34px; height: 34px; flex: none; display: grid; place-items: center; background: #ffce2e; border: 1px solid #ffffff33; border-radius: 4px; }
+.brand-mark { width: 34px; height: 34px; flex: none; display: grid; place-items: center; background: #263320; border: 1px solid #ffffff33; border-radius: 4px; }
 .brand-mark img { width: 27px; height: 27px; display: block; }
 .page-logo { width: 47px; height: 47px; border-radius: 7px; }
 .page-logo img { width: 36px; height: 36px; }
@@ -224,3 +224,23 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .occurrence-top { display:flex;align-items:center;justify-content:space-between;gap:12px;color:#999;font:11px Consolas,monospace;margin-bottom:8px; }
 .occurrence .evidence { margin:0;border:0;padding:8px 10px; }
 .occurrence details { padding:0 8px; }
+
+/* Mod catalog picker: aligned with Windhawk Badges' compact search design. */
+.mod-field { margin-bottom: 17px; }
+.mod-search-wrap { position: relative; }
+.mod-search-wrap input[type="search"] { height: 40px; }
+.mod-results { position:absolute; top:calc(100% + 4px);left:0;right:0;z-index:30;max-height:310px;overflow-y:auto;background:#292929;border:1px solid #545454;border-radius:3px;box-shadow:0 8px 22px #0008; }
+.mod-result { width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:0;border-bottom:1px solid #383838;padding:9px 12px;background:none;color:#e6e6e6;min-height:44px; }
+.mod-result:last-child { border-bottom:0; }
+.mod-result:hover, .mod-result.active { background:#363636; }
+.mod-result span { display:flex;min-width:0;flex-direction:column;gap:2px;font-size:12px;overflow:hidden;text-overflow:ellipsis; }
+.mod-result span small { color:#a3a3a3;font-size:11px; }
+.mod-result code { flex:none;max-width:44%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a1a1a1;font:11px Consolas,monospace; }
+.mod-empty { padding:12px;color:#aaa;font-size:12px;margin:0; }
+.selected-mod { display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:9px;font-size:12px; }
+.selected-mod span { display:flex;flex-direction:column;min-width:0;overflow:hidden; }
+.selected-mod strong,.selected-mod small { text-overflow:ellipsis;white-space:nowrap;overflow:hidden; }
+.selected-mod small { color:#999;font-size:11px; }
+.selected-mod a { flex:none;color:#c7d9af; }
+.manual-source { padding-top:15px;margin-top:13px;border-top:1px solid var(--border); }
+@media(max-width:520px){.mod-result code{max-width:33%;font-size:10px}.selected-mod{align-items:start;flex-direction:column}}
