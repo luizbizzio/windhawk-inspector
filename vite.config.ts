@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
-// Base '/windhawk-inspector/' for project Pages, '/' for custom domains.
+// The Windhawk Inspector custom domain serves the app from '/'.
+// GITHUB_PAGES_BASE is set by the deployment workflow.
 export default defineConfig({
   plugins: [react()],
   base: process.env.GITHUB_PAGES_BASE || '/',

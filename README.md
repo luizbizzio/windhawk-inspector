@@ -1,5 +1,7 @@
 # Windhawk Inspector
 
+**Website:** https://windhawk-inspector.luizbizzio.com/
+
 **Understand what a Windhawk mod can do before installing it.**
 
 Windhawk Inspector is a browser-based, open-source C++ source analyzer for [Windhawk](https://windhawk.net/) mods. It inspects code without compiling or executing it and highlights potentially sensitive operations with source-line evidence.
@@ -33,7 +35,7 @@ Windhawk-inspired minimal dark interface.
 
 ## Usage
 
-1. Open the hosted page, or run the project locally.
+1. Open [windhawk-inspector.luizbizzio.com](https://windhawk-inspector.luizbizzio.com/), or run the project locally.
 2. Find a Windhawk mod by name or ID (or paste a URL, select a file or paste source code).
 3. Optionally enable version comparison and provide the previous source.
 4. Select **Analyze source**.
@@ -64,7 +66,9 @@ The selectable Windhawk mod catalog is generated from the official public catalo
 
 ## Static-host deployment
 
-The GitHub Actions workflow downloads the official Windhawk catalog on deployment and on a daily schedule, then builds the app with a `/windhawk-inspector/` base path and deploys to GitHub Pages. Set **Settings → Pages → Build and deployment → GitHub Actions**, and confirm your repository visibility/plan permits Pages. For a custom domain at the root, set `GITHUB_PAGES_BASE=/` and configure the custom domain and DNS separately.
+The site is published at **https://windhawk-inspector.luizbizzio.com/** using GitHub Pages and GitHub Actions. The workflow generates the official Windhawk catalog on deployment and daily, then builds with `GITHUB_PAGES_BASE=/` so JavaScript, images, the catalog and Tree-sitter WASM files load from the custom domain root. The old `/windhawk-inspector/` path must not be used for this deployment.
+
+In **Settings → Pages**, select **GitHub Actions** as the publishing source and configure the custom domain as `windhawk-inspector.luizbizzio.com`. At the DNS provider, point the `windhawk-inspector` CNAME record to `luizbizzio.github.io` (not a URL path). GitHub Actions-based Pages deployments do not need a `CNAME` file in the repository. Enable **Enforce HTTPS** when GitHub permits it.
 
 ## How to interpret findings
 
