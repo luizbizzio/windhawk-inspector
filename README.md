@@ -107,3 +107,11 @@ Apache License 2.0. See [LICENSE](LICENSE).
 The results use simple, privacy-style SVG icons for the capabilities found in source code: networking, reading/writing/deleting files, keyboard input, permissions, processes, and other activity. Icons are informational, not OS permission indicators or proof that any operation ran. Camera and microphone icons appear for specific Windows video/audio capture functions (such as capCreateCaptureWindowW and waveInOpen). The tool does not infer media-device access from generic COM calls or Media Foundation enumeration without capture context. These API calls do not prove a camera or microphone was activated.
 
 The source viewer and technical details remain visible after each scan. To keep large reports responsive, the source viewer shows a 301-line window and jumps to selected lines.
+
+## Comparing versions
+
+Choose a Windhawk mod, enable **Compare versions**, and select a previous version from its official GitHub commit history. The version dropdown shows only release numbers explicitly named in commit messages and links to each commit changelog. The source for the chosen revision is fetched from the official Windhawk mods repository. GitHub history may be unavailable due to API rate limits, or some mods may not have recognizable version labels.
+
+You can also compare two source files manually using an upload, supported GitHub/Windhawk URL or pasted C++ code. For accuracy, both files must contain the same `@id` in their Windhawk metadata. Unknown or mismatched IDs are rejected before analysis; identical sources are not compared. The source comparison shows changes in detected capabilities, not a complete code diff or security verdict.
+
+Activity icons now have separate colors for easy recognition. These colors represent capability types, not severity. The full SHA-256 is visible in technical details.

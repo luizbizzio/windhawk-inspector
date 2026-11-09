@@ -72,6 +72,19 @@ export function activityGlyphShapes(id:string):readonly GlyphShape[] {
   return ACTIVITY_SHAPES[activityGlyph(id)];
 }
 
+/** Independent activity colors, not severity / safety levels. */
+const ACTIVITY_COLORS: Record<ActivityGlyph,string> = {
+  camera:'#d2a2ff', microphone:'#f3a9c3', globe:'#70d7c2',
+  'file-pen':'#ffc27a', 'file-search':'#9bc9f7', 'folder-open':'#c0b1fa',
+  trash:'#f58d90', download:'#86bbf1', keyboard:'#c5acf1', mouse:'#b8c8e7',
+  shield:'#8ed0ab', 'shield-alert':'#ffb579', monitor:'#8bc0e9',
+  memory:'#c4a7ef', puzzle:'#d2b3f0', package:'#d9b1f0', settings:'#e4bd8c',
+  terminal:'#b7c1d4', lock:'#d3a5df', power:'#e6b47f', apps:'#b7d9a3', activity:'#c9d0d5',
+};
+export function activityIconColor(id:string):string {
+  return ACTIVITY_COLORS[activityGlyph(id)];
+}
+
 /** HTML report uses exactly the same icon geometry as the main interface. */
 export function activityIconSvg(id:string):string {
   const markup = activityGlyphShapes(id).map(shape => {
@@ -79,5 +92,5 @@ export function activityIconSvg(id:string):string {
     if (shape.kind === 'circle') return `<circle cx="${shape.cx}" cy="${shape.cy}" r="${shape.r}"/>`;
     return `<rect x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}" rx="${shape.rx ?? 0}"/>`;
   }).join('');
-  return `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
+  return `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="${activityIconColor(id)}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
 }

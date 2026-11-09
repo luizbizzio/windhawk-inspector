@@ -5,7 +5,7 @@ import { findLexicalCalls } from './lexical';
 import { buildInsights, coverageSummary, groupEvidence, parserGapDetail } from './insights';
 import { activityIconSvg } from './privacy-icons';
 
-export const ENGINE_VERSION = '0.3.4';
+export const ENGINE_VERSION = '0.3.5';
 const BASE_LIMITATIONS = [
   'Static source analysis cannot prove what executes at runtime or that a mod is safe.',
   'Macro expansion, external headers/libraries, generated code, indirect calls and dynamic behavior may be missed.',
@@ -120,7 +120,7 @@ export function reportHtml(report: ScanReport): string {
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Windhawk Inspector Report</title><style>
   body{font:14px/1.6 system-ui,Arial,sans-serif;background:#1c1c1c;color:#eee;max-width:1050px;margin:35px auto;padding:0 18px}
-  h1,h2,h3{font-weight:600}h1{color:#ffce2e} .activity-icon{width:28px;height:28px;display:inline-grid;place-items:center;color:#ffce2e;background:#263320;border:1px solid #425344;border-radius:6px;margin-right:10px;vertical-align:middle}.activity-icon svg{width:19px;height:19px;display:block}h2{margin-top:27px}p,small{color:#bbb}article{background:#232323;border:1px solid #424242;padding:13px 18px;margin:12px 0;border-radius:4px}
+  h1,h2,h3{font-weight:600}h1{color:#ffce2e} .activity-icon{width:28px;height:28px;display:inline-grid;place-items:center;background:#263320;border:1px solid #425344;border-radius:6px;margin-right:10px;vertical-align:middle}.activity-icon svg{width:19px;height:19px;display:block}h2{margin-top:27px}p,small{color:#bbb}article{background:#232323;border:1px solid #424242;padding:13px 18px;margin:12px 0;border-radius:4px}
   .review{color:#e2ca9d}h2{font-size:18px}h3{font-size:14px;margin:0 0 5px}article p{margin:4px 0 8px}details{font-size:12px}article details p{margin-top:8px}
   .notice{border:1px solid ${coverage.kind==='caution'?'#a17b3e':'#555'};padding:12px 15px;background:#262626}
   .notice.note{border:none;background:transparent;color:#a6b1a6;padding:0;font-size:12px}
@@ -129,7 +129,7 @@ export function reportHtml(report: ScanReport): string {
   </style></head><body><h1>Windhawk Inspector</h1><p>This is not a safety certificate. The tool only checks source code.</p>
   <h2>${esc(report.metadata.name ?? report.filename)}</h2><p>Engine ${esc(report.engineVersion)} · ${esc(report.analyzedAt)} · SHA-256 ${esc(report.sha256)}</p>
   <div class="notice ${coverage.kind}"><strong>${esc(coverage.title)}</strong><p>${esc(coverage.explanation)}</p></div>
-  <h2>What we found</h2><p>The code contains ${insights.length} types of activity. These are clues from the source, not proof of what the mod did.</p>
+  <h2>What we found</h2><p>Icons show potential capabilities. Colors indicate activity types, not risk.</p>
   ${review?`<h2>Worth a closer look</h2>${review}`:''}
   ${routine?`<h2>Other things found</h2>${routine}`:''}
   ${!insights.length?'<p>No matching functions were found. This does not mean the mod is safe.</p>':''}

@@ -5,7 +5,10 @@ import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client'
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
 import { filterCatalog, parseCatalog, type CatalogMod } from './catalog';
 import { buildInsights, coverageSummary, groupEvidence, parserGapDetail, type PlainInsight } from './analysis/insights';
-import { activityGlyphShapes } from './analysis/privacy-icons';
+import { activityGlyphShapes, activityIconColor } from './analysis/privacy-icons';
+import { verifyComparableSources } from './analysis/comparison';
+import { parseMetadata } from './analysis/metadata';
+import { catalogModId, loadModVersions, type ModVersion } from './analysis/versions';
 
 type SourceMode = 'url' | 'upload' | 'paste';
 interface SourcePanelState { mode: SourceMode; url: string; code: string; file?: File; }
@@ -83,7 +86,7 @@ function ModPicker({ mods, data, setData, disabled, catalogStatus }: {mods:Catal
   </div>;
 }
 
-function SourcePanel({ title, data, setData, disabled, mods, catalogStatus }: { title:string; data: SourcePanelState; setData:(p:SourcePanelState)=>void; disabled:boolean; mods:CatalogMod[];catalogStatus:string; }) {
+function SourcePanel({ title, data, setData, disabled, mods, catalogStatus, showPicker=true }: { title:string; data: SourcePanelState; setData:(p:SourcePanelState)=>void; disabled:boolean; mods:CatalogMod[];catalogStatus:string; showPicker?:boolean; }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const setMode = (mode: SourceMode) => setData({ ...data, mode });
   return <section className="source-panel">
@@ -92,10 +95,41 @@ function SourcePanel({ title, data, setData, disabled, mods, catalogStatus }: { 
       {([['url','URL','link'],['upload','Upload','upload'],['paste','Paste code','code']] as const).map(([mode,label,icon]) =>
         <button type="button" key={mode} disabled={disabled} role="tab" aria-selected={data.mode===mode} className={data.mode===mode?'tab active':'tab'} onClick={()=>setMode(mode)}><Icon name={icon} size={16}/>{label}</button>)}
     </div>
-    {data.mode === 'url' && <><ModPicker mods={mods} catalogStatus={catalogStatus} data={data} setData={setData} disabled={disabled}/><div className="field manual-source"><label htmlFor={title+'-url'}>Windhawk or GitHub source URL</label><input id={title+'-url'} type="url" value={data.url} placeholder="https://windhawk.net/mods/..." disabled={disabled} onChange={e => setData({...data,url:e.target.value})}/><p className="hint">Windhawk mod URL, GitHub file or raw URL. Public sources only.</p></div></>}
+    {data.mode === 'url' && <>{showPicker && <ModPicker mods={mods} catalogStatus={catalogStatus} data={data} setData={setData} disabled={disabled}/>}<div className="field manual-source"><label htmlFor={title+'-url'}>Windhawk or GitHub source URL</label><input id={title+'-url'} type="url" value={data.url} placeholder="https://windhawk.net/mods/..." disabled={disabled} onChange={e => setData({...data,url:e.target.value})}/><p className="hint">Windhawk mod URL, GitHub file or raw URL. Public sources only.</p></div></>}
     {data.mode === 'upload' && <div className="upload-zone"><input ref={fileRef} type="file" accept=".cpp,.h,.hpp,.txt" disabled={disabled} className="visually-hidden" onChange={(e:ChangeEvent<HTMLInputElement>)=>setData({...data,file:e.target.files?.[0]})}/><Icon name="upload" size={29}/><strong>{data.file?.name ?? 'Select a source file'}</strong><span className="muted">.wh.cpp · .cpp · .h · .hpp · .txt · up to 50 MB</span><button type="button" className="secondary compact" onClick={()=>fileRef.current?.click()} disabled={disabled}>Browse files</button></div>}
     {data.mode === 'paste' && <div className="field"><label htmlFor={title+'-code'}>Paste C++ source</label><textarea id={title+'-code'} value={data.code} placeholder="// ==WindhawkMod==\n// @id example\n// @include explorer.exe\n// ==/WindhawkMod==" onChange={e=>setData({...data,code:e.target.value})} disabled={disabled} spellCheck={false} rows={7}/><p className="hint">Code is processed locally. No upload or execution.</p></div>}
   </section>;
+}
+
+function VersionPicker({ modId, choice, onChoice, disabled }: {modId:string;choice:ModVersion|null;onChoice:(version:ModVersion|null)=>void;disabled:boolean}) {
+  const [versions,setVersions] = useState<ModVersion[]>([]);
+  const [state,setState] = useState<'loading'|'ready'|'error'>('loading');
+  const [error,setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    setVersions([]); setState('loading'); setError('');
+    onChoice(null);
+    loadModVersions(modId,controller.signal).then(items => {
+      if (!controller.signal.aborted) {setVersions(items);setState('ready');}
+    }).catch(err => {
+      if (!controller.signal.aborted) {setError(err instanceof Error?err.message:'Could not load versions.');setState('error');}
+    });
+    return () => controller.abort();
+  }, [modId]);
+  const older = versions.slice(1); // First recognized commit is the current catalog version.
+  const selected = older.find(v=>v.sha===choice?.sha) ?? null;
+  return <div className="version-picker">
+    <div className="field"><label htmlFor="previous-version">Previous version</label>
+      <select id="previous-version" value={selected?.sha ?? ''} disabled={disabled||state!=='ready'}
+        onChange={e=>onChoice(older.find(v=>v.sha===e.target.value)??null)}>
+        <option value="">{state==='loading'?'Loading GitHub versions...':'Choose a version'}</option>
+        {older.map(v=><option key={v.sha} value={v.sha}>v{v.version}{v.date?` · ${v.date}`:''}</option>)}
+      </select></div>
+    {selected && <div className="version-reference"><span>Compare with v{selected.version}</span>
+      <a href={selected.commitUrl} target="_blank" rel="noopener noreferrer">View changelog on GitHub ↗</a></div>}
+    {state==='error' ? <p className="hint version-error" role="status">{error}</p> :
+      <p className="hint">Version labels come from the official mod's GitHub commit history.</p>}
+  </div>;
 }
 
 async function prepareSource(data: SourcePanelState): Promise<SourceInput> {
@@ -121,7 +155,7 @@ function saveFile(filename: string, content: string, mime: string) {
 
 function ActivityIcon({ id }: { id:string }) {
   const shapes = activityGlyphShapes(id);
-  return <span className="activity-icon" aria-hidden="true">
+  return <span className="activity-icon" style={{color:activityIconColor(id)}} aria-hidden="true">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       {shapes.map((shape,i)=>shape.kind==='path' ? <path key={i} d={shape.d}/> :
         shape.kind==='circle' ? <circle key={i} cx={shape.cx} cy={shape.cy} r={shape.r}/> :
@@ -214,7 +248,6 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
     return (category==='All'||f.category===category) && (severity==='all'||f.severity===severity) &&
       `${f.title} ${f.category} ${f.symbol} ${f.explanation} ${g.occurrences.map(o=>o.excerpt).join(' ')}`.toLowerCase().includes(search.toLowerCase());
   });
-  const counts = CATEGORIES.map(c=>[c,groups.filter(g=>g.finding.category===c).length] as const).filter(([,n])=>n>0);
   const parser = report.diagnostics;
   const parserGap = parserGapDetail(report);
   function jumpTo(line:number) { setFocusLine(line); document.querySelector('.viewer')?.scrollIntoView({behavior:'smooth'}); }
@@ -226,8 +259,7 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
     <section className="plain-summary" aria-label="Scan overview">
       <div className="plain-summary-heading">
         <h3>What we found</h3>
-        <p>The code contains {insights.length} types of activity. These are clues from the source, not proof of what the mod did.</p>
-        <p className="activity-legend">Icons show what the code may be able to do, not what it did or what Windows allowed.</p>
+        <p className="activity-legend">Icons show possible capabilities, not actions that definitely happened. Colors are categories, not risk scores.</p>
       </div>
       {reviewItems.length>0 && <section className="insight-section" aria-label="Items to review">
         <div className="insight-section-title"><h4>Worth a closer look</h4><span>{reviewItems.length}</span></div>
@@ -241,8 +273,8 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
     </section>
     <div className="plain-actions"><h3>Technical details</h3><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
     <div className="advanced-report" aria-label="Technical details">
-    <div className="stats"><div><strong>{groups.length}</strong><span>Technical groups</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{groups.filter(g=>g.finding.severity==='high'||g.finding.severity==='medium').length}</strong><span>Review suggested</span></div><div><strong>{report.findings.length}</strong><span>Occurrences</span></div></div>
-    <div className="meta-grid"><div><span>Included processes</span><strong>{report.metadata.includes.join(', ') || 'Not declared'}</strong></div><div><span>Excluded processes</span><strong>{report.metadata.excludes.join(', ') || 'None declared'}</strong></div><div><span>SHA-256</span><code title={report.sha256}>{report.sha256.slice(0,18)}…</code></div><div><span>Analyzed</span><strong>{new Date(report.analyzedAt).toLocaleString()}</strong></div></div>
+    <div className="stats"><div><strong>{groups.length}</strong><span>API groups</span></div><div><strong>{report.findings.length}</strong><span>Code references</span></div></div>
+    <div className="meta-grid"><div><span>Runs in</span><strong>{report.metadata.includes.join(', ') || 'Not specified'}</strong></div>{report.metadata.excludes.length>0 && <div><span>Excluded programs</span><strong>{report.metadata.excludes.join(', ')}</strong></div>}<div className="meta-hash"><span>SHA-256</span><code>{report.sha256}</code></div></div>
     <div className="parser-summary" aria-label="C++ parser coverage">
       <strong>Parser coverage</strong>
       {(report.coverage==='ast'||report.coverage==='hybrid') && parser ? <>
@@ -268,7 +300,7 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
 
 function DiffView({ previous, current }: {previous:ScanReport; current:ScanReport}) {
   const diff = useMemo(()=>compareReports(previous,current),[previous,current]);
-  return <section className="diff"><div className="section-heading"><h3>Changes compared with previous version</h3><span className="muted tiny">Source-level comparison</span></div><div className="diff-stats"><span>+ {diff.added.length} added</span><span>− {diff.removed.length} removed</span><span>{diff.unchanged} unchanged</span></div><p className="hint">Matching uses rule, API and source line text (ignoring whitespace). Refactors can appear as additions/removals even without a behavior change.</p>
+  return <section className="diff"><div className="section-heading"><h3>Changes from v{previous.metadata.version ?? '?'} to v{current.metadata.version ?? '?'}</h3><span className="muted tiny">Same mod: {current.metadata.id}</span></div><div className="diff-stats"><span>+ {diff.added.length} added</span><span>− {diff.removed.length} removed</span><span>{diff.unchanged} unchanged</span></div><p className="hint">Matching uses rule, API and source line text (ignoring whitespace). Refactors can appear as additions/removals even without a behavior change.</p>
     <div className="diff-columns"><div><h4>Added findings</h4>{diff.added.length?diff.added.map(f=><p key={f.id} className="diff-item added">+ {f.title} <span>{f.symbol}</span></p>):<p className="muted">No newly detected findings.</p>}</div><div><h4>Removed findings</h4>{diff.removed.length?diff.removed.map(f=><p key={f.id} className="diff-item removed">− {f.title} <span>{f.symbol}</span></p>):<p className="muted">No removed findings.</p>}</div></div></section>;
 }
 
@@ -295,17 +327,30 @@ export default function App() {
   }, []);
   const [before,setBefore] = useState<SourcePanelState>(initialSource);
   const [compare,setCompare] = useState(false);
+  const [comparisonMode,setComparisonMode] = useState<'github'|'manual'>('github');
+  const [previousVersion,setPreviousVersion] = useState<ModVersion|null>(null);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [result,setResult] = useState<{report:ScanReport; source:string} | null>(null);
   const [previous,setPrevious] = useState<ScanReport | null>(null);
   const [focusLine,setFocusLine] = useState(0);
+  const officialId = input.mode==='url' ? catalogModId(input.url) : null;
+  const fromCatalog = officialId ? mods.some(mod=>mod.id===officialId) : false;
+  const useGithubHistory = compare && fromCatalog && comparisonMode==='github';
   async function analyze() {
     if (busy) return;
     setBusy(true); setError(''); setResult(null); setPrevious(null); setFocusLine(0);
     try {
       const currentSource = await prepareSource(input);
-      const oldSource = compare ? await prepareSource(before) : null;
+      if (useGithubHistory && !previousVersion) throw new Error('Choose a previous version from GitHub first.');
+      const oldSource = compare ? (useGithubHistory && previousVersion
+        ? await loadSourceUrl(previousVersion.sourceUrl)
+        : await prepareSource(before)) : null;
+      if (oldSource) verifyComparableSources(currentSource,oldSource,useGithubHistory ? officialId ?? undefined : undefined);
+      if (oldSource && useGithubHistory && previousVersion) {
+        const claimed = parseMetadata(oldSource.source).version;
+        if (claimed !== previousVersion.version) throw new Error(`The selected GitHub revision declares version ${claimed ?? 'unknown'}, not v${previousVersion.version}. Please use a different revision.`);
+      }
       const currentReport = await runAnalysis(currentSource);
       const oldReport = oldSource ? await runAnalysis(oldSource) : null;
       setResult({report:currentReport,source:currentSource.source}); setPrevious(oldReport);
@@ -341,7 +386,15 @@ export default function App() {
           <input type="checkbox" checked={compare} disabled={busy} onChange={e=>setCompare(e.target.checked)}/>
           <span><strong>Compare versions</strong><small>Show added and removed capabilities</small></span>
         </label>
-        {compare && <SourcePanel title="Previous version" data={before} setData={setBefore} disabled={busy} mods={mods} catalogStatus={catalogStatus}/>}
+        {compare && <div className="compare-panel">
+          {fromCatalog && <div className="compare-options" role="group" aria-label="Previous version source">
+            <button type="button" className={comparisonMode==='github'?'compare-option selected':'compare-option'} disabled={busy} onClick={()=>setComparisonMode('github')}>Choose a version</button>
+            <button type="button" className={comparisonMode==='manual'?'compare-option selected':'compare-option'} disabled={busy} onClick={()=>setComparisonMode('manual')}>File, URL or code</button>
+          </div>}
+          {useGithubHistory && officialId ? <VersionPicker modId={officialId} choice={previousVersion} onChoice={setPreviousVersion} disabled={busy}/> :
+            <SourcePanel title="Earlier version of the same mod" data={before} setData={setBefore} disabled={busy} mods={mods} catalogStatus={catalogStatus} showPicker={false}/>}
+          <p className="hint compare-help">Both versions must declare the same Windhawk <code>@id</code>. Different mods cannot be compared.</p>
+        </div>}
         {error && <div className="error" role="alert"><Icon name="alert" size={18}/>{error}</div>}
         <div className="action-line">
           <button type="button" className="primary" onClick={analyze} disabled={busy}><Icon name="search" size={16}/>{busy?'Analyzing...':'Analyze source'}</button>
