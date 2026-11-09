@@ -16,6 +16,18 @@ interface Description { title: string; meaning: string; why: string; next: strin
 // Explain what a call allows, not what the mod actually does at runtime.
 // Fixed, reviewed language is intentionally used instead of speculative AI summaries.
 const DESCRIPTIONS: Record<string, Description> = {
+  'camera': {
+    title: 'Can use video capture',
+    meaning: 'Contains an API for working with a camera or another video-capture device.',
+    why: 'Creating a capture window does not prove that a camera was turned on or recorded anything.',
+    next: 'Does this mod need video capture to do its job?',
+  },
+  'microphone': {
+    title: 'Can use audio input',
+    meaning: 'Contains an API for opening or starting an audio-input device.',
+    why: 'This can include a microphone or another sound input. It does not prove sound was recorded.',
+    next: 'Does this mod need a microphone or another audio input?',
+  },
   'windows-components': {
     title: 'Uses Windows components',
     meaning: 'Looks up Windows functions and opens system components.',
@@ -140,6 +152,8 @@ const DESCRIPTIONS: Record<string, Description> = {
 
 /** Place related APIs into one user-facing capability. Raw findings are never removed. */
 export function insightId(f: Finding): string {
+  if (f.ruleId === 'media-video-capture') return 'camera';
+  if (f.ruleId === 'media-audio-input') return 'microphone';
   if (f.ruleId === 'mem-other') {
     const flags = (f.arguments ?? '').split(',')[0];
     const queryOnly = f.symbol === 'OpenProcess' && /\b(?:PROCESS_QUERY_LIMITED_INFORMATION|PROCESS_QUERY_INFORMATION|SYNCHRONIZE)\b/.test(flags) && !/\b(?:PROCESS_VM_READ|PROCESS_VM_WRITE|PROCESS_VM_OPERATION|PROCESS_ALL_ACCESS|PROCESS_TERMINATE|PROCESS_CREATE_THREAD)\b/.test(flags);

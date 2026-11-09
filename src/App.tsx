@@ -5,6 +5,7 @@ import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client'
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
 import { filterCatalog, parseCatalog, type CatalogMod } from './catalog';
 import { buildInsights, coverageSummary, groupEvidence, parserGapDetail, type PlainInsight } from './analysis/insights';
+import { activityGlyphShapes } from './analysis/privacy-icons';
 
 type SourceMode = 'url' | 'upload' | 'paste';
 interface SourcePanelState { mode: SourceMode; url: string; code: string; file?: File; }
@@ -118,6 +119,17 @@ function saveFile(filename: string, content: string, mime: string) {
   window.setTimeout(()=>URL.revokeObjectURL(url), 3000);
 }
 
+function ActivityIcon({ id }: { id:string }) {
+  const shapes = activityGlyphShapes(id);
+  return <span className="activity-icon" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {shapes.map((shape,i)=>shape.kind==='path' ? <path key={i} d={shape.d}/> :
+        shape.kind==='circle' ? <circle key={i} cx={shape.cx} cy={shape.cy} r={shape.r}/> :
+        <rect key={i} x={shape.x} y={shape.y} width={shape.width} height={shape.height} rx={shape.rx}/>)}
+    </svg>
+  </span>;
+}
+
 function InsightRow({ insight, onShowLine }: { insight:PlainInsight; onShowLine:(line:number)=>void }) {
   const [expanded, setExpanded] = useState(false);
   const [all, setAll] = useState(false);
@@ -126,10 +138,11 @@ function InsightRow({ insight, onShowLine }: { insight:PlainInsight; onShowLine:
   const visible = all ? evidence : evidence.slice(0, 5);
   return <article className="insight-row">
     <div className="insight-row-main">
+      <ActivityIcon id={insight.id}/>
       <div className="insight-row-copy">
         <h4>{insight.title}</h4>
         <p>{insight.meaning}</p>
-        {insight.priority==='review' && <p className="insight-advice"><strong>Check:</strong> {insight.next}</p>}
+        {insight.priority==='review' && <p className="insight-advice"><strong>What to review:</strong> {insight.next}</p>}
       </div>
       <button type="button" className="insight-details" aria-expanded={expanded} aria-controls={detailsId} onClick={()=>setExpanded(v=>!v)}>
         {expanded?'Hide details':'Details'} <span aria-hidden="true">{expanded?'−':'+'}</span>
@@ -174,18 +187,16 @@ function FindingCard({ group, onShowLine }: { group:FindingGroup; onShowLine:(li
 }
 
 function SourceViewer({ source, focusLine }: {source:string; focusLine:number}) {
-  const [show,setShow] = useState(false);
   const lines = useMemo(()=>source.split(/\r?\n/),[source]);
   const start = focusLine > 0 ? Math.max(0, focusLine - 151) : 0;
   const visibleLines = lines.slice(start, start + 301);
-  useEffect(() => { if (focusLine) { setShow(true); requestAnimationFrame(()=>document.getElementById('source-line-'+focusLine)?.scrollIntoView({block:'center',behavior:'smooth'})); } }, [focusLine]);
-  function reveal() { setShow(true); }
+  useEffect(() => { if (focusLine) requestAnimationFrame(()=>document.getElementById('source-line-'+focusLine)?.scrollIntoView({block:'center',behavior:'smooth'})); }, [focusLine]);
   return <section className="viewer">
-    <div className="section-heading"><h3>Source code</h3><button className="secondary compact" onClick={()=>show?setShow(false):reveal()}>{show?'Hide':'View source'}</button></div>
-    {show && <div className="source-lines" role="region" aria-label="C++ source code">
-      <p className="hint" style={{paddingLeft:14}}>Showing lines {start+1} to {start+visibleLines.length} of {lines.length} to keep the browser responsive.</p>
+    <div className="section-heading"><h3>Source code</h3><span className="muted tiny">Showing {visibleLines.length} of {lines.length.toLocaleString()} lines</span></div>
+    <div className="source-lines" role="region" aria-label="C++ source code">
+      <p className="hint" style={{paddingLeft:14}}>Lines {start+1} to {start+visibleLines.length}. Click a source reference above to jump to that part.</p>
       {visibleLines.map((line,index)=><div className={focusLine===start+index+1?'source-line focused':'source-line'} id={'source-line-'+(start+index+1)} key={start+index}><span>{start+index+1}</span><code>{line || ' '}</code></div>)}
-    </div>}
+    </div>
   </section>;
 }
 
@@ -198,7 +209,6 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   const reviewItems = insights.filter(item=>item.priority==='review');
   const otherItems = insights.filter(item=>item.priority!=='review');
   const coverage = coverageSummary(report);
-  const [advanced,setAdvanced] = useState(false);
   const filtered = groups.filter(g => {
     const f = g.finding;
     return (category==='All'||f.category===category) && (severity==='all'||f.severity===severity) &&
@@ -217,6 +227,7 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
       <div className="plain-summary-heading">
         <h3>What we found</h3>
         <p>The code contains {insights.length} types of activity. These are clues from the source, not proof of what the mod did.</p>
+        <p className="activity-legend">Icons show what the code may be able to do, not what it did or what Windows allowed.</p>
       </div>
       {reviewItems.length>0 && <section className="insight-section" aria-label="Items to review">
         <div className="insight-section-title"><h4>Worth a closer look</h4><span>{reviewItems.length}</span></div>
@@ -228,8 +239,8 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
       </section>}
       {!insights.length && <p className="plain-empty">No matching functions were found. That does not mean the mod is safe.</p>}
     </section>
-    <div className="plain-actions"><button type="button" className="secondary" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}>{advanced?'Hide technical details':'Show technical details'}</button><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
-    {advanced && <div className="advanced-report" aria-label="Technical details">
+    <div className="plain-actions"><h3>Technical details</h3><div className="export-buttons"><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'json'),JSON.stringify(report,null,2),'application/json')}><Icon name="download" size={15}/> JSON</button><button className="secondary compact" onClick={()=>saveFile(reportFilename(report,'html'),reportHtml(report),'text/html')}><Icon name="download" size={15}/> HTML</button></div></div>
+    <div className="advanced-report" aria-label="Technical details">
     <div className="stats"><div><strong>{groups.length}</strong><span>Technical groups</span></div><div><strong>{counts.length}</strong><span>Categories</span></div><div><strong>{groups.filter(g=>g.finding.severity==='high'||g.finding.severity==='medium').length}</strong><span>Review suggested</span></div><div><strong>{report.findings.length}</strong><span>Occurrences</span></div></div>
     <div className="meta-grid"><div><span>Included processes</span><strong>{report.metadata.includes.join(', ') || 'Not declared'}</strong></div><div><span>Excluded processes</span><strong>{report.metadata.excludes.join(', ') || 'None declared'}</strong></div><div><span>SHA-256</span><code title={report.sha256}>{report.sha256.slice(0,18)}…</code></div><div><span>Analyzed</span><strong>{new Date(report.analyzedAt).toLocaleString()}</strong></div></div>
     <div className="parser-summary" aria-label="C++ parser coverage">
@@ -250,7 +261,7 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
     <div className="findings-list">{filtered.length?filtered.slice(0,200).map(g=><FindingCard key={g.id} group={g} onShowLine={jumpTo}/>):<div className="empty-findings">No matching findings. This does not mean the mod is safe.</div>}</div>
     {filtered.length>200 && <p className="hint">Showing the first 200 matching capabilities. Use filters or search to narrow results.</p>}
     <div className="limits"><div><Icon name="alert" size={19}/><strong>Interpretation limits</strong></div><ul>{report.limitations.map((l,i)=><li key={i}>{l}</li>)}</ul><p>Severity indicates the importance of reviewing a capability, not a probability that the mod is malware.</p></div>
-    </div>}
+    </div>
     <SourceViewer source={source} focusLine={focusLine}/>
   </section>;
 }

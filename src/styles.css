@@ -293,3 +293,10 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .advanced-report .section-heading { margin-bottom: 12px; }
 
 @media(max-width: 480px) { .coverage-notice p { margin-left: 0; } .insight-row-main { padding: 14px; gap: 9px; } .insight-details { font-size: 10px; } .line-links { max-width: 47%; } }
+
+/* Privacy-style activity symbols: neutral category cues, not safety grades. */
+.activity-icon { flex: 0 0 36px; width:36px; height:36px; border-radius:7px; display:grid; place-items:center; color:#ffce2e; border:1px solid #425344; background:#263320; }
+.activity-icon svg { display:block; }
+.activity-legend { margin-top:8px !important; color:#949f98 !important; font-size:11px !important; }
+.plain-actions > h3 { font-size:15px; font-weight:600; margin:0; }
+@media(max-width:480px) { .activity-icon { width:32px; height:32px; flex-basis:32px; } .activity-icon svg { width:20px; height:20px; } }

@@ -101,3 +101,9 @@ Automated tests cover grouped findings with evidence retention, the Taskbar Zone
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
+
+## Activity icons
+
+The results use simple, privacy-style SVG icons for the capabilities found in source code: networking, reading/writing/deleting files, keyboard input, permissions, processes, and other activity. Icons are informational, not OS permission indicators or proof that any operation ran. Camera and microphone icons appear for specific Windows video/audio capture functions (such as capCreateCaptureWindowW and waveInOpen). The tool does not infer media-device access from generic COM calls or Media Foundation enumeration without capture context. These API calls do not prove a camera or microphone was activated.
+
+The source viewer and technical details remain visible after each scan. To keep large reports responsive, the source viewer shows a 301-line window and jumps to selected lines.

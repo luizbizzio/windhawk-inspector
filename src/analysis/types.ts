@@ -1,5 +1,5 @@
 export const CATEGORIES = [
-  'Network', 'Downloads', 'File System', 'Registry', 'Process Execution',
+  'Network', 'Downloads', 'Camera', 'Microphone', 'File System', 'Registry', 'Process Execution',
   'Memory', 'Hooks & Injection', 'Persistence', 'Privileges',
   'Dynamic Loading', 'Input & Shortcuts', 'Sensitive Data', 'Metadata',
 ] as const;
