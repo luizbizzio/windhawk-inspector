@@ -20,12 +20,15 @@ describe('custom domain deployment', () => {
     expect(workflow).toContain('actions/deploy-pages@v4');
   });
 
-  it('keeps the white bird on a navy background in the site logo', () => {
-    const svg = read('public/assets/windhawk-logo.svg');
+  it('uses one navy square without an outline behind the white bird', () => {
+    const bird = read('public/assets/windhawk-bird.svg');
+    const favicon = read('public/assets/windhawk-logo.svg');
     const css = read('src/styles.css');
-    expect(svg).toContain('rx="112" fill="#1E293B"');
-    expect(svg).toContain('<path fill="#ffffff"');
-    expect(css).toMatch(/\.brand-mark\s*\{[^}]*background:\s*#1E293B;/);
+    expect(bird).toContain('<path fill="#ffffff"');
+    expect(bird).not.toContain('<rect');
+    expect(favicon).toContain('rx="112" fill="#1E293B"');
+    expect(css).toMatch(/\.brand-mark\s*\{[^}]*background:\s*#1E293B;[^}]*border:\s*0;/);
+    expect(read('src/App.tsx').match(/assets\/windhawk-bird\.svg/g)).toHaveLength(2);
   });
 
   it('uses the new domain in canonical and social metadata', () => {
@@ -48,7 +51,7 @@ describe('custom domain deployment', () => {
 
   it('loads the catalog, icons and parser assets relative to the Vite base', () => {
     expect(read('src/App.tsx')).toContain('${import.meta.env.BASE_URL}data/catalog.json');
-    expect(read('src/App.tsx')).toContain('${import.meta.env.BASE_URL}assets/windhawk-logo.svg');
+    expect(read('src/App.tsx')).toContain('${import.meta.env.BASE_URL}assets/windhawk-bird.svg');
     expect(read('src/workers/analyzer.worker.ts')).toContain('import.meta.env.BASE_URL');
     expect(read('index.html')).toContain('%BASE_URL%assets/windhawk-logo.svg');
   });

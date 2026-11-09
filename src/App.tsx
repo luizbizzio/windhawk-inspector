@@ -363,7 +363,7 @@ export default function App() {
       <div className="page-heading">
         <div className="page-heading-copy">
           <div className="page-title-row">
-            <span className="brand-mark page-logo" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="36" height="36" /></span>
+            <span className="brand-mark page-logo" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-bird.svg`} alt="" width="36" height="36" /></span>
             <h1>Windhawk Inspector</h1>
           </div>
           <p>See what a Windhawk mod can access. Important findings come first, with code details one click away.</p>
@@ -408,7 +408,7 @@ export default function App() {
     </main>
     <footer className="footer"><div className="wrap footer-inner">
       <div className="footer-main">
-        <div className="footer-brand"><span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="31" height="31"/></span><div><strong>Windhawk Inspector</strong><p>A free, open-source community tool.</p></div></div>
+        <div className="footer-brand"><span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-bird.svg`} alt="" width="31" height="31"/></span><div><strong>Windhawk Inspector</strong><p>A free, open-source community tool.</p></div></div>
         <nav className="footer-links" aria-label="Footer links">
           <a href="https://windhawk.net/" target="_blank" rel="noopener noreferrer">Windhawk</a>
           <a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Badges</a>
