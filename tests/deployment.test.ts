@@ -20,6 +20,14 @@ describe('custom domain deployment', () => {
     expect(workflow).toContain('actions/deploy-pages@v4');
   });
 
+  it('keeps the white bird on a navy background in the site logo', () => {
+    const svg = read('public/assets/windhawk-logo.svg');
+    const css = read('src/styles.css');
+    expect(svg).toContain('rx="112" fill="#1E293B"');
+    expect(svg).toContain('<path fill="#ffffff"');
+    expect(css).toMatch(/\.brand-mark\s*\{[^}]*background:\s*#1E293B;/);
+  });
+
   it('uses the new domain in canonical and social metadata', () => {
     const html = read('index.html');
     expect(html).toContain(`<link rel="canonical" href="${DOMAIN}" />`);
