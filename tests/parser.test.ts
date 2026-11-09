@@ -64,3 +64,30 @@ describe('C++ Tree-sitter WASM integration', () => {
   });
 
 });
+
+
+describe('parser error span measurement', () => {
+  it('merges overlapping error spans and counts missing token lines once', () => {
+    const source = '0123456789\n'.repeat(20);
+    const nodes = [
+      {type:'ERROR',isMissing:false,startIndex:20,endIndex:30,
+        startPosition:{row:1,column:9},endPosition:{row:2,column:8}},
+      {type:'ERROR',isMissing:false,startIndex:22,endIndex:25,
+        startPosition:{row:2,column:0},endPosition:{row:2,column:3}},
+      {type:'MISSING',isMissing:true,startIndex:120,endIndex:120,
+        startPosition:{row:12,column:0},endPosition:{row:12,column:0}},
+    ];
+    let index=0;
+    const cursor = {
+      get currentNode() {return nodes[index];},
+      gotoFirstChild:()=>false,
+      gotoNextSibling:()=>++index < nodes.length,
+      gotoParent:()=>false,
+    };
+    const parsed = inspectSyntaxTree(source,{walk:()=>cursor} as unknown as Tree);
+    expect(parsed.diagnostics?.errorSpanCharacters).toBe(10);
+    expect(parsed.diagnostics?.errorAffectedLines).toBe(3);
+    expect(parsed.diagnostics?.sourceCharacters).toBe(source.length);
+    expect(parsed.limitations.join(' ')).toContain('not confirmed compile errors');
+  });
+});

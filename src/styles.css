@@ -253,6 +253,9 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .coverage-notice.caution > div svg { color: #e7bc6c; }
 .coverage-notice.normal > div svg { color: #b4d8ad; }
 .coverage-notice p { margin: 7px 0 0 28px; color: #c6c6c6; font-size: 12px; line-height: 1.6; }
+/* Minor parser recovery is a quiet note, not an amber security banner. */
+.coverage-quiet-note { display:flex; align-items:center; gap:8px; margin:0 0 19px; color:#a7aca7; font-size:12px; line-height:1.5; }
+.coverage-quiet-note svg { color:#9cab97; flex:none; }
 /* Reader-first report: compact list, no repeating marketing-style cards. */
 .plain-summary-heading { margin: 0 0 23px; }
 .plain-summary-heading h3 { font-size: 19px; margin: 0 0 5px; font-weight: 600; }

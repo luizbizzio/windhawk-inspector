@@ -251,24 +251,53 @@ export function groupEvidence(findings: Finding[]): EvidenceRow[] {
   return [...seen.values()].sort((a,b) => b.locations.length - a.locations.length || a.label.localeCompare(b.label));
 }
 
-export function coverageSummary(report: Pick<ScanReport,'coverage'|'diagnostics'|'limitations'>): {
-  kind: 'caution' | 'normal'; title: string; explanation: string;
+/** These figures describe Tree-sitter recovery, not whether the mod compiles or is safe.
+ *  Old reports without regional metrics stay conservative.
+ */
+export function parserIssueImpact(report: Pick<ScanReport,'diagnostics'> & Partial<Pick<ScanReport,'sourceLines'>>):
+  'none' | 'minor' | 'significant' | 'unknown' {
+  const d = report.diagnostics;
+  if (!d || d.syntaxErrorNodes + d.missingNodes === 0) return 'none';
+  if (!report.sourceLines || !d.sourceCharacters ||
+      d.errorAffectedLines === undefined || d.errorSpanCharacters === undefined) return 'unknown';
+  const affected = d.errorAffectedLines / report.sourceLines;
+  const characters = d.errorSpanCharacters / d.sourceCharacters;
+  const eventDensity = (d.syntaxErrorNodes + d.missingNodes) / report.sourceLines;
+  return affected >= .02 || characters >= .02 || eventDensity >= .03 ? 'significant' : 'minor';
+}
+
+export function parserGapDetail(report: Pick<ScanReport,'diagnostics'> & Partial<Pick<ScanReport,'sourceLines'>>): string | null {
+  const d = report.diagnostics;
+  if (!d || d.errorAffectedLines === undefined || !report.sourceLines) return null;
+  const percent = (100 * d.errorAffectedLines / report.sourceLines).toFixed(2);
+  return `${d.errorAffectedLines.toLocaleString('en-US')} of ${report.sourceLines.toLocaleString('en-US')} lines (${percent}%) include parser recovery marks`;
+}
+
+export function coverageSummary(report: Pick<ScanReport,'coverage'|'diagnostics'|'limitations'> & Partial<Pick<ScanReport,'sourceLines'>>): {
+  kind: 'caution' | 'normal' | 'note'; title: string; explanation: string;
 } {
   if (report.coverage === 'hybrid') return {
     kind:'caution', title:'Part of the scan was limited',
-    explanation:'The detailed scan stopped early. A text search covered the rest, but it can miss calls or find false matches.',
+    explanation:'The detailed scan stopped early. A text search checked the whole file, but its results are less accurate.',
   };
   if (report.coverage === 'lexical') return {
     kind:'caution', title:'Text scan only',
-    explanation:'Only known function names were searched. Some actions may be missed.',
+    explanation:'The scanner searched for known function names. Some actions may be missed.',
   };
   if (report.diagnostics?.truncated) return {
     kind:'caution', title:'Scan stopped early',
-    explanation:'The analyzer reached its inspection limit before finishing. The findings below are incomplete.',
+    explanation:'The scanner reached an inspection limit before finishing. Some findings may be missing.',
   };
-  if ((report.diagnostics?.syntaxErrorNodes ?? 0) + (report.diagnostics?.missingNodes ?? 0) > 0) return {
-    kind:'caution', title:'Some code was hard to read',
-    explanation:'Parts of the C++ code were hard to interpret. Some actions may be missed.',
+  const impact = parserIssueImpact(report);
+  if (impact === 'significant' || impact === 'unknown') return {
+    kind:'caution', title:'Parts of the code were unclear',
+    explanation: impact === 'unknown'
+      ? 'The parser found uncertain code, but this report has no measurements of how much was affected. It does not mean the mod cannot compile.'
+      : 'The parser could not fully interpret a noticeable part of this file. Some calls may be missed. This is not a compiler error report.',
+  };
+  if (impact === 'minor') return {
+    kind:'note', title:'Scan finished',
+    explanation:'A small part of the code was unclear to the parser. See technical details. This does not mean the mod has errors.',
   };
   return {kind:'normal', title:'Scan finished',
     explanation:'No scan limits were reached. This still cannot show everything the mod does when it runs.'};

@@ -112,3 +112,40 @@ AdjustTokenPrivileges(token, FALSE, &privileges, 0, nullptr, nullptr);`;
     expect(html).not.toContain('Why it matters');
   });
 });
+
+
+describe('measured C++ parser uncertainty', () => {
+  const diagnostics = {
+    visitedNodes: 1_200_000, callExpressions: 20_000, analyzedCalls: 20_000,
+    syntaxErrorNodes: 260, missingNodes: 150, sampledIssueLines: [3727],
+    errorSpanCharacters: 2_000, errorAffectedLines: 400, sourceCharacters: 2_500_000,
+    truncated: false,
+  };
+  it('shows a quiet note for small recovery regions in a large completed scan', () => {
+    const report = {coverage:'ast' as const, sourceLines:109_419, diagnostics,limitations:[]};
+    const summary = coverageSummary(report);
+    expect(summary.kind).toBe('note');
+    expect(summary.title).toBe('Scan finished');
+    expect(summary.explanation).toContain('not mean the mod has errors');
+  });
+  it('keeps a prominent warning when a meaningful share of lines is affected', () => {
+    const report = {coverage:'ast' as const, sourceLines:1_000,
+      diagnostics:{...diagnostics,errorAffectedLines:90}, limitations:[]};
+    expect(coverageSummary(report).kind).toBe('caution');
+  });
+  it('detects a large single ERROR span even when few lines are affected', () => {
+    const report = {coverage:'ast' as const, sourceLines:100_000,
+      diagnostics:{...diagnostics,errorSpanCharacters:90_000}, limitations:[]};
+    expect(coverageSummary(report).kind).toBe('caution');
+  });
+  it('does not conceal gaps when old reports lack the span metrics', () => {
+    const oldReport = {coverage:'ast' as const, sourceLines:100_000,
+      diagnostics:{...diagnostics,errorAffectedLines:undefined,errorSpanCharacters:undefined}, limitations:[]};
+    expect(coverageSummary(oldReport).kind).toBe('caution');
+  });
+  it('still prioritizes a truncated scan over small syntax notes', () => {
+    const report = {coverage:'ast' as const, sourceLines:109_419,
+      diagnostics:{...diagnostics,truncated:true}, limitations:[]};
+    expect(coverageSummary(report).kind).toBe('caution');
+  });
+});

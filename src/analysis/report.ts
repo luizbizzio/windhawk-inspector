@@ -2,9 +2,9 @@ import type { Finding, FindingGroup, ParseResult, ScanReport } from './types';
 import { findingsFromCalls, findingsFromMetadata } from './rules';
 import { parseMetadata } from './metadata';
 import { findLexicalCalls } from './lexical';
-import { buildInsights, coverageSummary, groupEvidence } from './insights';
+import { buildInsights, coverageSummary, groupEvidence, parserGapDetail } from './insights';
 
-export const ENGINE_VERSION = '0.3.2';
+export const ENGINE_VERSION = '0.3.3';
 const BASE_LIMITATIONS = [
   'Static source analysis cannot prove what executes at runtime or that a mod is safe.',
   'Macro expansion, external headers/libraries, generated code, indirect calls and dynamic behavior may be missed.',
@@ -95,6 +95,7 @@ const esc = (input: string) => input.replace(/[&<>"']/g, c => ({'&':'&amp;','<':
 export function reportHtml(report: ScanReport): string {
   const insights = buildInsights(report);
   const coverage = coverageSummary(report);
+  const parserGap = parserGapDetail(report);
   const plainList = (priority: 'review' | 'note') => insights.filter(item=>item.priority===priority).map(item => {
     const refs = groupEvidence(item.findings).map(e=>`<li>${esc(e.label)} (${e.locations.length} reference${e.locations.length===1?'':'s'})</li>`).join('');
     return `<article><h3>${esc(item.title)}</h3><p>${esc(item.meaning)}</p>
@@ -111,7 +112,8 @@ export function reportHtml(report: ScanReport): string {
       ${occurrences.length} occurrence${occurrences.length===1?'':'s'}<details><summary>Show source lines</summary>${evidence}</details></td></tr>`;
   }).join('');
   const diag = report.diagnostics;
-  const parser = diag ? `<p>C++ calls inspected: ${diag.analyzedCalls}; parser errors: ${diag.syntaxErrorNodes}; missing tokens: ${diag.missingNodes}; inspection limit reached: ${diag.truncated ? 'yes' : 'no'}.</p>
+  const parser = diag ? `<p>C++ calls inspected: ${diag.analyzedCalls}; parser recovery regions: ${diag.syntaxErrorNodes}; missing tokens: ${diag.missingNodes}; inspection limit reached: ${diag.truncated ? 'yes' : 'no'}.</p>
+    ${parserGap ? `<p>${esc(parserGap)}. This is not a compilation check or a safety rating.</p>` : ''}
     ${report.coverage==='hybrid' ? `<p>Extra text-scan matches: ${diag.lexicalSupplementCalls ?? 0}. These are less precise than the C++ parser.</p>` : ''}` : '<p>Detailed C++ parser information unavailable.</p>';
   const limits = report.limitations.map(l=>`<li>${esc(l)}</li>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -120,11 +122,12 @@ export function reportHtml(report: ScanReport): string {
   h1,h2,h3{font-weight:600}h1{color:#ffce2e}h2{margin-top:27px}p,small{color:#bbb}article{background:#232323;border:1px solid #424242;padding:13px 18px;margin:12px 0;border-radius:4px}
   .review{color:#e2ca9d}h2{font-size:18px}h3{font-size:14px;margin:0 0 5px}article p{margin:4px 0 8px}details{font-size:12px}article details p{margin-top:8px}
   .notice{border:1px solid ${coverage.kind==='caution'?'#a17b3e':'#555'};padding:12px 15px;background:#262626}
+  .notice.note{border:none;background:transparent;color:#a6b1a6;padding:0;font-size:12px}
   table{width:100%;border-collapse:collapse}td,th{border:1px solid #444;padding:9px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
   details{margin:9px 0}summary{cursor:pointer;color:#e4d5a5}code{white-space:pre-wrap;overflow-wrap:anywhere}li{margin:7px 0}small{font-size:12px}
   </style></head><body><h1>Windhawk Inspector</h1><p>This is not a safety certificate. The tool only checks source code.</p>
   <h2>${esc(report.metadata.name ?? report.filename)}</h2><p>Engine ${esc(report.engineVersion)} · ${esc(report.analyzedAt)} · SHA-256 ${esc(report.sha256)}</p>
-  <div class="notice"><strong>${esc(coverage.title)}</strong><p>${esc(coverage.explanation)}</p></div>
+  <div class="notice ${coverage.kind}"><strong>${esc(coverage.title)}</strong><p>${esc(coverage.explanation)}</p></div>
   <h2>What we found</h2><p>The code contains ${insights.length} types of activity. These are clues from the source, not proof of what the mod did.</p>
   ${review?`<h2>Worth a closer look</h2>${review}`:''}
   ${routine?`<h2>Other things found</h2>${routine}`:''}

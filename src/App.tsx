@@ -4,7 +4,7 @@ import { compareReports, groupFindings, reportFilename, reportHtml } from './ana
 import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client';
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
 import { filterCatalog, parseCatalog, type CatalogMod } from './catalog';
-import { buildInsights, coverageSummary, groupEvidence, type PlainInsight } from './analysis/insights';
+import { buildInsights, coverageSummary, groupEvidence, parserGapDetail, type PlainInsight } from './analysis/insights';
 
 type SourceMode = 'url' | 'upload' | 'paste';
 interface SourcePanelState { mode: SourceMode; url: string; code: string; file?: File; }
@@ -206,11 +206,13 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
   });
   const counts = CATEGORIES.map(c=>[c,groups.filter(g=>g.finding.category===c).length] as const).filter(([,n])=>n>0);
   const parser = report.diagnostics;
-  const parserIssues = (parser?.syntaxErrorNodes ?? 0) + (parser?.missingNodes ?? 0);
+  const parserGap = parserGapDetail(report);
   function jumpTo(line:number) { setFocusLine(line); document.querySelector('.viewer')?.scrollIntoView({behavior:'smooth'}); }
   return <section className="results">
-    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?(parserIssues ? 'Parsing gaps found':'C++ parsed'):report.coverage==='hybrid'?'Mixed scan':'Basic text scan'}</span></div>
-    <div className={'coverage-notice '+coverage.kind} role="status"><div><Icon name={coverage.kind==='caution'?'alert':'check'} size={19}/><strong>{coverage.title}</strong></div><p>{coverage.explanation}</p></div>
+    <div className="section-heading"><div><p className="eyebrow">INSPECTION REPORT</p><h2>{report.metadata.name ?? report.filename}</h2><p className="muted">{report.metadata.id ? `ID: ${report.metadata.id} · `:''}{report.metadata.version ? `Version ${report.metadata.version} · `:''}{report.filename}</p></div><span className={'coverage '+report.coverage}>{report.coverage==='ast'?(coverage.kind==='caution' ? 'Parsing gaps' : 'C++ parsed'):report.coverage==='hybrid'?'Mixed scan':'Basic text scan'}</span></div>
+    {coverage.kind === 'note'
+      ? <p className="coverage-quiet-note"><Icon name="check" size={15}/>{coverage.explanation}</p>
+      : <div className={'coverage-notice '+coverage.kind} role="status"><div><Icon name={coverage.kind==='caution'?'alert':'check'} size={19}/><strong>{coverage.title}</strong></div><p>{coverage.explanation}</p></div>}
     <section className="plain-summary" aria-label="Scan overview">
       <div className="plain-summary-heading">
         <h3>What we found</h3>
@@ -237,10 +239,11 @@ function ReportView({ report, source, focusLine, setFocusLine }: { report:ScanRe
         {report.coverage==='hybrid' && <span>{parser.lexicalSupplementCalls ?? 0} extra text matches</span>}
         <span>{parser.syntaxErrorNodes} error regions</span>
         <span>{parser.missingNodes} missing tokens</span>
+        {parserGap && <span>{parserGap}</span>}
         {parser.truncated && <span className="parser-warning">Inspection limit reached</span>}
         {!!parser.sampledIssueLines.length && <span>Examples at lines {parser.sampledIssueLines.join(', ')}</span>}
       </> : <span>Basic text scan. Full C++ parser diagnostics unavailable.</span>}
-      <p>These counts describe syntax analysis, not the percentage of safe or understood code. Macros and external dependencies are not resolved.</p>
+      <p>Parser recovery marks do not prove the C++ code is invalid. The affected-line share is not a safety score or a measure of how many functions work. Compilation was not checked.</p>
     </div>
     <div className="section-heading"><h3>Raw technical findings</h3><p className="muted tiny">Every source match is kept in the JSON export.</p></div>
     <div className="filters"><input aria-label="Search findings" placeholder="Search findings..." value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Filter category" value={category} onChange={e=>setCategory(e.target.value as Category|'All')}><option value="All">All categories</option>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select><select aria-label="Filter severity" value={severity} onChange={e=>setSeverity(e.target.value)}><option value="all">All severities</option>{SEVERITY_ORDER.map(s=><option key={s} value={s}>{s}</option>)}</select></div>

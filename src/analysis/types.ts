@@ -38,6 +38,12 @@ export interface ParserDiagnostics {
   analyzedCalls: number;
   syntaxErrorNodes: number;
   missingNodes: number;
+  /** Characters covered by Tree-sitter ERROR nodes, with overlapping spans merged. */
+  errorSpanCharacters?: number;
+  /** Distinct lines touched by ERROR nodes or missing tokens. */
+  errorAffectedLines?: number;
+  /** Source length in JavaScript characters, matching the parser's node offsets. */
+  sourceCharacters?: number;
   sampledIssueLines: number[];
   truncated: boolean;
   lexicalSupplementCalls?: number;

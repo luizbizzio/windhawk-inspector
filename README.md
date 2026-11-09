@@ -23,7 +23,8 @@ A source match shows that code exists, not that it ran. If a scan is incomplete,
 - Compares two versions and identifies added/removed source-level findings.
 - Exports JSON and standalone HTML reports.
 - Runs analysis in Web Workers. A Tree-sitter C++ WebAssembly parser is used when available, with a clearly labeled limited lexical fallback.
-- Reports parser coverage diagnostics: call sites inspected, syntax error nodes, missing tokens, sample issue lines and any inspection limits reached. The AST scan allows up to 2 million syntax nodes and 60,000 call expressions; larger scans may still fall back to a limited text scan.
+- Reports parser coverage diagnostics: call sites inspected, syntax error nodes, missing tokens, sample issue lines and any inspection limits reached.
+- Measures the source lines and characters touched by parser recovery regions. Minor regions appear as a quiet note; larger gaps remain visible. These are parser diagnostics, not compiler errors or a safety score. The AST scan allows up to 2 million syntax nodes and 60,000 call expressions; larger scans may still fall back to a limited text scan.
 - Does **not** upload files, paste content or analysis results to a backend. Public URL analysis fetches source directly from GitHub.
 
 ## Design
