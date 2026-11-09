@@ -12,6 +12,14 @@ describe('custom domain deployment', () => {
     expect(read('vite.config.ts')).toContain("base: process.env.GITHUB_PAGES_BASE || '/'");
   });
 
+  it('waits for the build artifact in a separate deployment job', () => {
+    const workflow = read('.github/workflows/pages.yml');
+    expect(workflow).toMatch(/\n  build:\n/);
+    expect(workflow).toMatch(/\n  deploy:\n    needs: build\n/);
+    expect(workflow).toContain('actions/upload-pages-artifact@v4');
+    expect(workflow).toContain('actions/deploy-pages@v4');
+  });
+
   it('uses the new domain in canonical and social metadata', () => {
     const html = read('index.html');
     expect(html).toContain(`<link rel="canonical" href="${DOMAIN}" />`);
