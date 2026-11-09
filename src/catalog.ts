@@ -27,6 +27,14 @@ export function parseCatalog(value: unknown): ModCatalog {
   if (!mods.length) throw new Error('No valid Windhawk mods');
   return {generatedAt:data.generatedAt,mods};
 }
+/** Show the exact build-time catalog count and date, not hard-coded UI values. */
+export function formatCatalogSummary(catalog: Pick<ModCatalog, 'mods'|'generatedAt'>): string {
+  const count = catalog.mods.length.toLocaleString('en-US');
+  const updated = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(catalog.generatedAt));
+  return `${count} mods · Updated ${updated}`;
+}
 export function filterCatalog(mods: CatalogMod[], raw: string, limit=12): CatalogMod[] {
   const q=raw.trim().toLocaleLowerCase();
   if(!q) return [];

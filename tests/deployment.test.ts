@@ -34,6 +34,18 @@ describe('custom domain deployment', () => {
     expect(html).toContain(`<meta property="og:url" content="${DOMAIN}" />`);
   });
 
+  it('reuses the catalog status below project links and in the matching footer', () => {
+    const app = read('src/App.tsx');
+    expect(app).toContain('formatCatalogSummary(catalog)');
+    expect(app).toContain('className="catalog-summary" role="status" aria-live="polite"');
+    expect(app).toContain('className="footer-updated">{catalogStatus}');
+    expect(app).toContain('>Badges ↗</a>');
+    expect(app).toContain('>Report an issue</a>');
+    expect(app).toContain('>License</a>');
+    expect(app).not.toContain('>Windhawk Badges ↗</a>');
+    expect(app).not.toContain('>Windhawk Badges</a>');
+  });
+
   it('loads the catalog, icons and parser assets relative to the Vite base', () => {
     expect(read('src/App.tsx')).toContain('${import.meta.env.BASE_URL}data/catalog.json');
     expect(read('src/App.tsx')).toContain('${import.meta.env.BASE_URL}assets/windhawk-logo.svg');

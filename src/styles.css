@@ -46,6 +46,7 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .page-heading-meta { display: flex; flex-shrink: 0; align-self: flex-end; align-items: flex-end; flex-direction: column; gap: 7px; }
 .page-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px 20px; }
 .page-links a { font-size: 12px; font-weight: 500; color: #8bc5eb; white-space: nowrap; }
+.catalog-summary { padding: 0 0 3px; color: #a7a7a7; font-size: 12px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* One surface, no stacked decorative cards or gradients. */
 .panel, .workspace, .results, .diff { border: 1px solid var(--border); background: var(--surface); border-radius: 4px; padding: 23px 26px; margin-bottom: 17px; }
@@ -171,11 +172,14 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .footer-links { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px 23px; }
 .footer-links a { font-size: 12px; color: #bcbcbc; }
 .footer-bottom { display: flex; justify-content: space-between; align-items: center; gap: 12px 24px; margin-top: 36px; padding-top: 19px; border-top: 1px solid #343434; color: #9a9a9a; font-size: 11px; }
+.footer-bottom a { color: #aeb6bc; }
+.footer-updated { font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (max-width: 850px) {
   .main { padding-top: 29px; padding-bottom: 38px; }
   .page-heading { flex-direction: column; align-items: flex-start; gap: 12px; }
   .page-heading-meta { align-self: flex-start; align-items: flex-start; }
   .page-links { justify-content: flex-start; }
+  .catalog-summary { text-align: left; }
 }
 @media (max-width: 650px) {
   .wrap { padding-left: 16px; padding-right: 16px; }

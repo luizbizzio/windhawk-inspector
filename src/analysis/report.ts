@@ -5,7 +5,7 @@ import { findLexicalCalls } from './lexical';
 import { buildInsights, coverageSummary, groupEvidence, parserGapDetail } from './insights';
 import { activityIconSvg, activityIconColor, activityIconBackground } from './privacy-icons';
 
-export const ENGINE_VERSION = '0.3.7';
+export const ENGINE_VERSION = '0.3.8';
 const BASE_LIMITATIONS = [
   'Static source analysis cannot prove what executes at runtime or that a mod is safe.',
   'Macro expansion, external headers/libraries, generated code, indirect calls and dynamic behavior may be missed.',

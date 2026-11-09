@@ -3,7 +3,7 @@ import { CATEGORIES, type Category, type FindingGroup, type ScanReport } from '.
 import { compareReports, groupFindings, reportFilename, reportHtml } from './analysis/report';
 import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client';
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
-import { filterCatalog, parseCatalog, type CatalogMod } from './catalog';
+import { filterCatalog, formatCatalogSummary, parseCatalog, type CatalogMod } from './catalog';
 import { buildInsights, coverageSummary, groupEvidence, parserGapDetail, type PlainInsight } from './analysis/insights';
 import { activityGlyphShapes, activityIconColor, activityIconBackground } from './analysis/privacy-icons';
 import { verifyComparableSources } from './analysis/comparison';
@@ -82,7 +82,7 @@ function ModPicker({ mods, data, setData, disabled, catalogStatus }: {mods:Catal
     </div>
     {selected && <div className="selected-mod"><span><strong>{selected.name}</strong><small>{selected.id}</small></span>
       <a href={`https://windhawk.net/mods/${selected.id}`} target="_blank" rel="noopener noreferrer">View mod ↗</a></div>}
-    <p className="hint">{catalogStatus}. Select a mod to fill its source URL, or paste a URL below.</p>
+    <p className="hint">{mods.length ? 'Select a mod to fill its source URL, or paste a URL below.' : catalogStatus === 'Catalog unavailable' ? 'Mod list unavailable. You can still paste a source URL below.' : 'Mod list is loading. You can paste a source URL below.'}</p>
   </div>;
 }
 
@@ -317,7 +317,7 @@ export default function App() {
         const catalog = parseCatalog(await response.json());
         if (!ctrl.signal.aborted) {
           setMods(catalog.mods);
-          setCatalogStatus(`${catalog.mods.length.toLocaleString()} mods · updated ${new Date(catalog.generatedAt).toLocaleDateString()}`);
+          setCatalogStatus(formatCatalogSummary(catalog));
         }
       } catch(err) {
         if (!ctrl.signal.aborted) setCatalogStatus('Catalog unavailable');
@@ -371,9 +371,10 @@ export default function App() {
         <div className="page-heading-meta">
           <nav className="page-links" aria-label="Project links">
             <a href="https://windhawk.net/" target="_blank" rel="noopener noreferrer">Windhawk ↗</a>
-            <a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Windhawk Badges ↗</a>
+            <a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Badges ↗</a>
             <a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
           </nav>
+          <div className="catalog-summary" role="status" aria-live="polite">{catalogStatus}</div>
         </div>
       </div>
 
@@ -407,10 +408,19 @@ export default function App() {
     </main>
     <footer className="footer"><div className="wrap footer-inner">
       <div className="footer-main">
-        <div className="footer-brand"><span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="31" height="31"/></span><div><strong>Windhawk Inspector</strong><p>Open-source static analysis for Windhawk mods.</p></div></div>
-        <div className="footer-links"><a href="https://windhawk.net/" target="_blank" rel="noopener noreferrer">Windhawk</a><a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Windhawk Badges</a><a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+        <div className="footer-brand"><span className="brand-mark" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}assets/windhawk-logo.svg`} alt="" width="31" height="31"/></span><div><strong>Windhawk Inspector</strong><p>A free, open-source community tool.</p></div></div>
+        <nav className="footer-links" aria-label="Footer links">
+          <a href="https://windhawk.net/" target="_blank" rel="noopener noreferrer">Windhawk</a>
+          <a href="https://windhawk-badges.luizbizzio.com/" target="_blank" rel="noopener noreferrer">Badges</a>
+          <a href="https://github.com/luizbizzio/windhawk-inspector" target="_blank" rel="noopener noreferrer">Source code</a>
+          <a href="https://github.com/luizbizzio/windhawk-inspector/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+          <a href="https://github.com/luizbizzio/windhawk-inspector/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
+        </nav>
       </div>
-      <div className="footer-bottom"><span>Independent project, not affiliated with Windhawk.</span><span>No tracking · No server uploads · Apache-2.0 License</span></div>
+      <div className="footer-bottom">
+        <span>© {new Date().getFullYear()} <a href="https://github.com/luizbizzio" target="_blank" rel="noopener noreferrer">Luiz Bizzio</a>. Independent project, not affiliated with Windhawk.</span>
+        <span className="footer-updated">{catalogStatus}</span>
+      </div>
     </div></footer>
   </div>;
 }
