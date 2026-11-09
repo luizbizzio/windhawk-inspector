@@ -38,7 +38,7 @@ describe('privacy-style activity icons',()=>{
       expect(background).not.toBe('#263320');
       expect(background).not.toBe(icon);
     }
-    expect(activityIconBackground('globe')).toBe(activityIconBackground('network'));
+    expect(activityIconBackground('network')).toBe('#135c60');
     expect(activityIconBackground('camera')).not.toBe(activityIconBackground('network'));
   });
   it('uses camera and microphone symbols only for explicit capture APIs',()=>{
