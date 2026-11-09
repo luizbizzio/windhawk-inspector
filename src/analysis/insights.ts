@@ -278,7 +278,7 @@ export function coverageSummary(report: Pick<ScanReport,'coverage'|'diagnostics'
 } {
   if (report.coverage === 'hybrid') return {
     kind:'caution', title:'Part of the scan was limited',
-    explanation:'The detailed scan stopped early. A text search checked the whole file, but its results are less accurate.',
+    explanation:'The detailed scan stopped early. A text search checked the whole file, but it can miss or misidentify calls.',
   };
   if (report.coverage === 'lexical') return {
     kind:'caution', title:'Text scan only',
