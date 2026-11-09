@@ -68,9 +68,15 @@ export function versionsFromCommits(modId: string, payload: unknown): ModVersion
 export async function loadModVersions(modId: string, signal?: AbortSignal): Promise<ModVersion[]> {
   if (!MOD_ID.test(modId)) throw new Error('Invalid Windhawk mod ID.');
   const path = encodeURIComponent(`mods/${modId}.wh.cpp`);
-  const response = await fetch(`${API_ROOT}/commits?path=${path}&per_page=100`, {
-    signal, headers: { Accept:'application/vnd.github+json' }, cache: 'no-store',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_ROOT}/commits?path=${path}&per_page=100`, {
+      signal, headers: { Accept:'application/vnd.github+json' }, cache: 'no-store',
+    });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new Error('Could not reach GitHub to load older versions. Refresh the page or use a file, URL or pasted source.');
+  }
   if (!response.ok) {
     if (response.status === 403 || response.status === 429) throw new Error('GitHub history is temporarily unavailable or rate-limited. Use a file, URL or pasted source.');
     throw new Error(`Could not load version history from GitHub (HTTP ${response.status}).`);

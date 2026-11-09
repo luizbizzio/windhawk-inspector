@@ -3,9 +3,9 @@ import { findingsFromCalls, findingsFromMetadata } from './rules';
 import { parseMetadata } from './metadata';
 import { findLexicalCalls } from './lexical';
 import { buildInsights, coverageSummary, groupEvidence, parserGapDetail } from './insights';
-import { activityIconSvg } from './privacy-icons';
+import { activityIconSvg, activityIconColor, activityIconBackground } from './privacy-icons';
 
-export const ENGINE_VERSION = '0.3.5';
+export const ENGINE_VERSION = '0.3.6';
 const BASE_LIMITATIONS = [
   'Static source analysis cannot prove what executes at runtime or that a mod is safe.',
   'Macro expansion, external headers/libraries, generated code, indirect calls and dynamic behavior may be missed.',
@@ -99,7 +99,7 @@ export function reportHtml(report: ScanReport): string {
   const parserGap = parserGapDetail(report);
   const plainList = (priority: 'review' | 'note') => insights.filter(item=>item.priority===priority).map(item => {
     const refs = groupEvidence(item.findings).map(e=>`<li>${esc(e.label)} (${e.locations.length} reference${e.locations.length===1?'':'s'})</li>`).join('');
-    return `<article><h3><span class="activity-icon">${activityIconSvg(item.id)}</span>${esc(item.title)}</h3><p>${esc(item.meaning)}</p>
+    return `<article><h3><span class="activity-icon" style="color:${activityIconColor(item.id)};background:${activityIconBackground(item.id)}">${activityIconSvg(item.id)}</span>${esc(item.title)}</h3><p>${esc(item.meaning)}</p>
       ${priority==='review'?`<p class="review"><b>What to review:</b> ${esc(item.next)}</p>`:''}
       <details><summary>Details (${item.findings.length} references)</summary><p>${esc(item.why)}</p><ul>${refs}</ul></details></article>`;
   }).join('');
@@ -120,7 +120,7 @@ export function reportHtml(report: ScanReport): string {
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Windhawk Inspector Report</title><style>
   body{font:14px/1.6 system-ui,Arial,sans-serif;background:#1c1c1c;color:#eee;max-width:1050px;margin:35px auto;padding:0 18px}
-  h1,h2,h3{font-weight:600}h1{color:#ffce2e} .activity-icon{width:28px;height:28px;display:inline-grid;place-items:center;background:#263320;border:1px solid #425344;border-radius:6px;margin-right:10px;vertical-align:middle}.activity-icon svg{width:19px;height:19px;display:block}h2{margin-top:27px}p,small{color:#bbb}article{background:#232323;border:1px solid #424242;padding:13px 18px;margin:12px 0;border-radius:4px}
+  h1,h2,h3{font-weight:600}h1{color:#ffce2e} .activity-icon{width:28px;height:28px;display:inline-grid;place-items:center;background:#263320;border:1px solid color-mix(in srgb,currentColor 42%,transparent);border-radius:6px;margin-right:10px;vertical-align:middle}.activity-icon svg{width:19px;height:19px;display:block}h2{margin-top:27px}p,small{color:#bbb}article{background:#232323;border:1px solid #424242;padding:13px 18px;margin:12px 0;border-radius:4px}
   .review{color:#e2ca9d}h2{font-size:18px}h3{font-size:14px;margin:0 0 5px}article p{margin:4px 0 8px}details{font-size:12px}article details p{margin-top:8px}
   .notice{border:1px solid ${coverage.kind==='caution'?'#a17b3e':'#555'};padding:12px 15px;background:#262626}
   .notice.note{border:none;background:transparent;color:#a6b1a6;padding:0;font-size:12px}

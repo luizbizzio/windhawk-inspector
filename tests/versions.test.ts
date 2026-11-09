@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { catalogModId, versionFromCommitTitle, versionsFromCommits, versionSourceUrl } from '../src/analysis/versions';
 import { verifyComparableSources } from '../src/analysis/comparison';
 
@@ -6,6 +7,16 @@ const sha1='a'.repeat(40);
 const sha2='b'.repeat(40);
 const sha3='c'.repeat(40);
 const fakeSource = (id:string, version:string) => `// ==WindhawkMod==\n// @id ${id}\n// @version ${version}\n// ==/WindhawkMod==\nvoid foo() {}`;
+
+describe('Content Security Policy for version history', () => {
+  it('allows only the GitHub API and raw.githubusercontent.com for external connections', () => {
+    const html = readFileSync('index.html', 'utf8');
+    const csp = html.match(/Content-Security-Policy" content="([^"]+)/)?.[1];
+    expect(csp).toBeDefined();
+    expect(csp).toContain("connect-src 'self' https://raw.githubusercontent.com https://api.github.com;");
+    expect(csp).not.toContain('connect-src *');
+  });
+});
 
 describe('GitHub version selection', () => {
   it('reads version labels from real Windhawk commit-title formats', () => {

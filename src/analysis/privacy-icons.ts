@@ -85,6 +85,19 @@ export function activityIconColor(id:string):string {
   return ACTIVITY_COLORS[activityGlyph(id)];
 }
 
+/** Colored icon tiles with distinct hues. These indicate activity, not risk. */
+const ACTIVITY_BACKGROUNDS: Record<ActivityGlyph,string> = {
+  camera:'#64328c', microphone:'#752c59', globe:'#135c60',
+  'file-pen':'#735022', 'file-search':'#2c567c', 'folder-open':'#58447e',
+  trash:'#772e38', download:'#2c5689', keyboard:'#574181', mouse:'#425777',
+  shield:'#245e42', 'shield-alert':'#78502a', monitor:'#2d597b',
+  memory:'#514277', puzzle:'#5d3e7a', package:'#634575', settings:'#71512f',
+  terminal:'#42536e', lock:'#603c6c', power:'#765027', apps:'#486537', activity:'#3d505c',
+};
+export function activityIconBackground(id:string):string {
+  return ACTIVITY_BACKGROUNDS[activityGlyph(id)];
+}
+
 /** HTML report uses exactly the same icon geometry as the main interface. */
 export function activityIconSvg(id:string):string {
   const markup = activityGlyphShapes(id).map(shape => {

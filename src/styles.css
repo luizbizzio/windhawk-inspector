@@ -317,5 +317,5 @@ a:hover { color: #b3dffc; text-decoration: underline; }
 .advanced-report .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .meta-hash { grid-column:1 / -1; }
 .meta-hash code { font:12px/1.5 Consolas,monospace; overflow-wrap:anywhere; word-break:break-all; user-select:all; }
-.activity-icon { border-color:color-mix(in srgb,currentColor 34%, #3a3a3a); background:#263320; }
+.activity-icon { border-color:color-mix(in srgb,currentColor 42%, transparent); }
 @media(max-width:650px){.version-reference{flex-direction:column;}.meta-hash{grid-column:auto;}}

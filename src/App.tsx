@@ -5,7 +5,7 @@ import { readLocalFile, runAnalysis, type SourceInput } from './analysis/client'
 import { loadSourceUrl, MAX_SOURCE_BYTES } from './analysis/url';
 import { filterCatalog, parseCatalog, type CatalogMod } from './catalog';
 import { buildInsights, coverageSummary, groupEvidence, parserGapDetail, type PlainInsight } from './analysis/insights';
-import { activityGlyphShapes, activityIconColor } from './analysis/privacy-icons';
+import { activityGlyphShapes, activityIconColor, activityIconBackground } from './analysis/privacy-icons';
 import { verifyComparableSources } from './analysis/comparison';
 import { parseMetadata } from './analysis/metadata';
 import { catalogModId, loadModVersions, type ModVersion } from './analysis/versions';
@@ -155,7 +155,7 @@ function saveFile(filename: string, content: string, mime: string) {
 
 function ActivityIcon({ id }: { id:string }) {
   const shapes = activityGlyphShapes(id);
-  return <span className="activity-icon" style={{color:activityIconColor(id)}} aria-hidden="true">
+  return <span className="activity-icon" style={{color:activityIconColor(id),backgroundColor:activityIconBackground(id)}} aria-hidden="true">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       {shapes.map((shape,i)=>shape.kind==='path' ? <path key={i} d={shape.d}/> :
         shape.kind==='circle' ? <circle key={i} cx={shape.cx} cy={shape.cy} r={shape.r}/> :

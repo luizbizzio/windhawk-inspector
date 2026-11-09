@@ -115,3 +115,9 @@ Choose a Windhawk mod, enable **Compare versions**, and select a previous versio
 You can also compare two source files manually using an upload, supported GitHub/Windhawk URL or pasted C++ code. For accuracy, both files must contain the same `@id` in their Windhawk metadata. Unknown or mismatched IDs are rejected before analysis; identical sources are not compared. The source comparison shows changes in detected capabilities, not a complete code diff or security verdict.
 
 Activity icons now have separate colors for easy recognition. These colors represent capability types, not severity. The full SHA-256 is visible in technical details.
+
+## GitHub history and privacy icon colors
+
+Version selection uses the official GitHub API (`api.github.com`) to list commits and `raw.githubusercontent.com` to retrieve historic source. Both hosts are explicitly allowlisted in the page Content Security Policy. The selector may still be limited by GitHub's unauthenticated API quota.
+
+Activity icons use independent color pairs for the icon and tile background, both in the interface and the standalone HTML report. These colors identify activity types, not risk or permission status.

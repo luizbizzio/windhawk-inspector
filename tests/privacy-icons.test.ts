@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIVITY_SHAPES, activityGlyph, activityGlyphShapes, activityIconSvg } from '../src/analysis/privacy-icons';
+import { ACTIVITY_SHAPES, activityGlyph, activityGlyphShapes, activityIconSvg, activityIconColor, activityIconBackground } from '../src/analysis/privacy-icons';
 import { buildInsights } from '../src/analysis/insights';
 import { findingsFromCalls } from '../src/analysis/rules';
 import { findLexicalCalls } from '../src/analysis/lexical';
@@ -28,6 +28,18 @@ describe('privacy-style activity icons',()=>{
     }
     expect(activityGlyph('<img src=x onerror=alert(1)>')).toBe('activity');
     expect(activityIconSvg('<img src=x onerror=alert(1)>')).not.toContain('<img');
+  });
+  it('gives every activity a colored icon and a colored background',()=>{
+    for (const glyph of Object.keys(ACTIVITY_SHAPES)) {
+      const icon = activityIconColor(glyph);
+      const background = activityIconBackground(glyph);
+      expect(icon).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(background).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(background).not.toBe('#263320');
+      expect(background).not.toBe(icon);
+    }
+    expect(activityIconBackground('globe')).toBe(activityIconBackground('network'));
+    expect(activityIconBackground('camera')).not.toBe(activityIconBackground('network'));
   });
   it('uses camera and microphone symbols only for explicit capture APIs',()=>{
     const source = `capCreateCaptureWindowW(L"video", 0, 0, 0, 100, 100, nullptr, 1);
