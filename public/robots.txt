@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://windhawk-inspector.luizbizzio.com/sitemap.xml

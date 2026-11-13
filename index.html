@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#202020" />
+  <link rel="icon" type="image/svg+xml" href="%BASE_URL%assets/windhawk-logo.svg" />
+  <meta name="description" content="Inspect the capabilities of Windhawk mod source code in your browser. No code execution, no server uploads." />
+  <link rel="canonical" href="https://windhawk-inspector.luizbizzio.com/" />
+  <meta property="og:url" content="https://windhawk-inspector.luizbizzio.com/" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com https://api.github.com; img-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Windhawk Inspector",
+    "url": "https://windhawk-inspector.luizbizzio.com/",
+    "description": "Inspect Windhawk mod C++ source code in your browser, review possible capabilities, and compare versions without running mod code.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "isAccessibleForFree": true,
+    "author": {
+      "@type": "Person",
+      "name": "Luiz Bizzio",
+      "url": "https://github.com/luizbizzio"
+    }
+  }
+  </script>
+  <title>Windhawk Inspector | Static Security Analysis</title>
+</head>
+<body>
+  <div id="root">
+    <div class="app">
+      <main class="wrap main">
+        <header class="page-heading">
+          <div class="page-heading-copy">
+            <div class="page-title-row">
+              <span class="brand-mark page-logo" aria-hidden="true"><img src="%BASE_URL%assets/windhawk-bird.svg" alt="" width="36" height="36" /></span>
+              <h1>Windhawk Inspector</h1>
+            </div>
+            <p>See what a Windhawk mod can access. Important findings come first, with code details one click away.</p>
+          </div>
+        </header>
+        <section class="workspace panel" aria-labelledby="analyze-title">
+          <div class="workspace-top">
+            <div>
+              <p class="eyebrow">SOURCE ANALYZER</p>
+              <h2 id="analyze-title">Analyze a mod</h2>
+            </div>
+          </div>
+          <p>Inspect Windhawk mod C++ source code in your browser to identify possible access to files, the Windows Registry, processes, memory, and network APIs.</p>
+          <p>Review detected code patterns and supporting source lines, or compare two versions of the same mod. The Inspector does not execute the mod and is not a malware scanner.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
