@@ -12,9 +12,11 @@ Analyze C++ source code in your browser, review sensitive capabilities, and comp
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-</div>
-
 Windhawk Inspector is a free, independent community tool for [Windhawk](https://windhawk.net/). It is **not affiliated with or endorsed by Windhawk**. It is also **not an antivirus, malware detector, or proof that a mod is safe**.
+
+<img src="assets/windhawk-inspector-demo.png" alt="Windhawk Inspector Demo" width="1200">
+
+</div>
 
 ## Get started
 
